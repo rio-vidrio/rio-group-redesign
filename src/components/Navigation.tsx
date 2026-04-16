@@ -8,16 +8,17 @@ interface NavigationProps {
 }
 
 const tabs = [
-  { id: "calculators", label: "Calculators", icon: "🧮" },
-  { id: "homeowner", label: "Existing Homeowner", icon: "🏠" },
-  { id: "selfemployed", label: "Business Owner", icon: "💼" },
-  { id: "rates", label: "Market Rates", icon: "📈" },
-  { id: "settings", label: "Settings", icon: "⚙️" },
+  { id: "calculators", label: "Calculators" },
+  { id: "homeowner", label: "Existing Homeowner" },
+  { id: "selfemployed", label: "Business Owner" },
+  { id: "rates", label: "Market Rates" },
+  { id: "settings", label: "Settings" },
 ];
 
 export default function Navigation({ activeTab, onTabChange }: NavigationProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const activeTab_ = tabs.find((t) => t.id === activeTab);
+
 
   const handleSelect = (id: string) => {
     onTabChange(id);
@@ -95,7 +96,6 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
           }}
         >
           <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "16px" }}>{activeTab_?.icon}</span>
             <span
               style={{
                 fontFamily: "'DM Sans', sans-serif",
@@ -142,7 +142,7 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
                     width: "100%",
                     display: "flex",
                     alignItems: "center",
-                    gap: "14px",
+                    gap: "12px",
                     padding: "14px 20px",
                     background: isActive ? "rgba(200,32,42,0.12)" : "transparent",
                     border: "none",
@@ -153,7 +153,6 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
                     transition: "background 100ms",
                   }}
                 >
-                  <span style={{ fontSize: "18px", flexShrink: 0 }}>{tab.icon}</span>
                   <span
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
