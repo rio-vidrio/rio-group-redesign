@@ -6,7 +6,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 no-print">
       <div style={{ position: "relative", overflow: "hidden" }}>
-        {/* Background image — more visible */}
+        {/* Background image */}
         <div
           aria-hidden="true"
           style={{
@@ -20,7 +20,6 @@ export default function Header() {
             zIndex: 0,
           }}
         />
-        {/* Subtle dark gradient overlay */}
         <div
           aria-hidden="true"
           style={{
@@ -42,37 +41,18 @@ export default function Header() {
             padding: "0 32px",
             height: "90px",
             alignItems: "center",
-            justifyContent: "space-between",
+            justifyContent: "center",
           }}
         >
-          {/* Left — AZ stacked logo, larger */}
-          <div style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
-            <Image
-              src="/AZ-Logo-White-Stack.png"
-              alt="AZ & Associates"
-              width={80}
-              height={80}
-              style={{ opacity: 0.95 }}
-            />
-          </div>
-
-          {/* Center — title + courtesy with Rio Group logo */}
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              transform: "translateX(-50%)",
-              textAlign: "center",
-              pointerEvents: "none",
-            }}
-          >
+          {/* Center — title + courtesy */}
+          <div style={{ textAlign: "center" }}>
             <div
               style={{
                 fontFamily: "'DM Sans', sans-serif",
                 color: "rgba(255,255,255,0.9)",
-                fontSize: "14px",
+                fontSize: "15px",
                 fontWeight: 600,
-                letterSpacing: "0.1em",
+                letterSpacing: "0.12em",
                 textTransform: "uppercase",
               }}
             >
@@ -80,20 +60,13 @@ export default function Header() {
             </div>
             <div
               style={{
-                marginTop: "6px",
+                marginTop: "7px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "7px",
               }}
             >
-              <Image
-                src="/rio-group-landscape.png"
-                alt="The Rio Group"
-                width={72}
-                height={18}
-                style={{ opacity: 0.4 }}
-              />
               <span
                 style={{
                   fontSize: "9px",
@@ -105,31 +78,28 @@ export default function Header() {
               >
                 Courtesy of
               </span>
+              <Image
+                src="/rio-group-landscape.png"
+                alt="The Rio Group"
+                width={72}
+                height={18}
+                style={{ opacity: 0.4 }}
+              />
             </div>
           </div>
-
-          {/* Right — spacer to balance logo */}
-          <div style={{ flexShrink: 0, width: "80px" }} />
         </div>
 
         {/* Mobile */}
         <div
-          className="sm:hidden flex items-center justify-between"
+          className="sm:hidden flex items-center justify-center"
           style={{ position: "relative", zIndex: 1, height: "68px", padding: "0 16px" }}
         >
-          <Image
-            src="/AZ-Logo-White-Stack.png"
-            alt="AZ & Associates"
-            width={52}
-            height={52}
-            style={{ opacity: 0.92 }}
-          />
           <div style={{ textAlign: "center" }}>
             <div
               style={{
                 fontFamily: "'DM Sans', sans-serif",
                 color: "rgba(255,255,255,0.88)",
-                fontSize: "10px",
+                fontSize: "11px",
                 fontWeight: 600,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
@@ -139,11 +109,11 @@ export default function Header() {
             </div>
             <div
               style={{
-                marginTop: "4px",
+                marginTop: "5px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: "5px",
+                gap: "6px",
               }}
             >
               <span style={{ fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.28)" }}>
@@ -152,13 +122,12 @@ export default function Header() {
               <Image
                 src="/rio-group-landscape.png"
                 alt="The Rio Group"
-                width={56}
-                height={14}
+                width={60}
+                height={15}
                 style={{ opacity: 0.35 }}
               />
             </div>
           </div>
-          <div style={{ width: "52px" }} />
         </div>
       </div>
     </header>
