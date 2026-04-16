@@ -1434,7 +1434,6 @@ function BusinessOwnerCalc() {
   useEffect(() => { setRates(getRates()); }, []);
 
   const convRate = rates.conventional || 6.25;
-  const fhaRate = rates.fha || 5.75;
   const bsRate = convRate + 1.5;
 
   /* Full Doc (Conventional) state */
