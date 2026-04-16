@@ -14,9 +14,7 @@ import { fetchLiveRates, saveRates } from "@/lib/rateStore";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("calculators");
-  const [unlockedPrivate, setUnlockedPrivate] = useState(false);
 
-  // Fetch live rates on load — always try, save if successful
   useEffect(() => {
     const tryFetchRates = async () => {
       const live = await fetchLiveRates();
@@ -26,18 +24,16 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--gray-50)" }}>
+    <div className="min-h-screen" style={{ background: "#111111" }}>
       <Header />
-      <Navigation
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        unlockedPrivate={unlockedPrivate}
-        onUnlock={() => { setUnlockedPrivate(true); setActiveTab("wizard"); }}
-      />
+      <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <main className="px-4 sm:px-6 py-8 md:py-10" style={{ background: "var(--gray-50)", minHeight: "calc(100vh - 72px)" }}>
+      <main
+        className="px-4 sm:px-6 py-8 md:py-10"
+        style={{ background: "#111111", minHeight: "calc(100vh - 72px)" }}
+      >
         <div style={{ maxWidth: "860px", margin: "0 auto" }}>
-          {/* Keep all tabs mounted so wizard state is never lost when switching tabs */}
+          {/* Keep all tabs mounted so state is never lost */}
           <div style={{ display: activeTab === "wizard" ? "block" : "none" }}><WizardShell onTabChange={setActiveTab} /></div>
           <div style={{ display: activeTab === "calculators" ? "block" : "none" }}><Calculators /></div>
           <div style={{ display: activeTab === "programs" ? "block" : "none" }}><ProgramReference /></div>
@@ -48,9 +44,22 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="no-print" style={{ borderTop: "1px solid #E0E0E0", background: "#0A0A0A", textAlign: "center", padding: "24px", marginTop: "32px" }}>
-        <p className="text-xs font-medium tracking-wide" style={{ color: "rgba(255,255,255,0.35)" }}>AZ &amp; Associates — Home Buying Advisor</p>
-        <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.2)" }}>All estimates for informational purposes only. Subject to lender approval.</p>
+      <footer
+        className="no-print"
+        style={{
+          borderTop: "1px solid #1E1E1E",
+          background: "#0A0A0A",
+          textAlign: "center",
+          padding: "24px",
+          marginTop: "32px",
+        }}
+      >
+        <p className="text-xs font-medium tracking-wide" style={{ color: "rgba(255,255,255,0.3)" }}>
+          A.Z. &amp; Associates — Home Buying Advisor
+        </p>
+        <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.15)" }}>
+          All estimates for informational purposes only. Subject to lender approval.
+        </p>
       </footer>
     </div>
   );
