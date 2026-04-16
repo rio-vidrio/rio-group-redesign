@@ -801,7 +801,7 @@ export default function WizardShell({ onTabChange }: Props) {
                     {/* Schedule C info card */}
                     <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 mb-4">
                       <p className="text-sm text-blue-800">
-                        Use net income from <strong>Schedule C (Line 31)</strong> — take a 2-year average of the net profit figure. With Cross Country Mortgage, 1 year may be acceptable if the client has been in business 5 or more years.
+                        Use net income from <strong>Schedule C (Line 31)</strong> — take a 2-year average of the net profit figure. With our lending partner, 1 year may be acceptable if the client has been in business 5 or more years.
                       </p>
                       <button
                         type="button"
@@ -824,7 +824,7 @@ export default function WizardShell({ onTabChange }: Props) {
                     {client.reducesNetIncome === "yes" && (
                       <AlertBox color="amber" title="High Write-Off Warning">
                         <p className="mt-1">
-                          If the client has significant write-offs that reduce their qualifying income, they may need to amend their tax returns to show higher net income. This type of file may be better suited for our preferred lending partner at Cross Country Mortgage who specializes in complex self-employed scenarios.
+                          If the client has significant write-offs that reduce their qualifying income, they may need to amend their tax returns to show higher net income. This type of file may be better suited for our preferred lending partner who specializes in complex self-employed scenarios.
                         </p>
                       </AlertBox>
                     )}
@@ -889,7 +889,7 @@ export default function WizardShell({ onTabChange }: Props) {
                           Variable income requires 12 months of history to be
                           used for qualifying. Consider waiting until that
                           threshold is met before applying for Programs 1 or 2,
-                          or refer to Cross Country Mortgage if they need to
+                          or refer to our lending partner if they need to
                           move sooner.
                         </p>
                       </AlertBox>
@@ -1076,7 +1076,7 @@ export default function WizardShell({ onTabChange }: Props) {
             {client.creditScore > 0 && client.creditScore < 580 && (
               <AlertBox color="red" title="⛔ Score below 580">
                 <p className="mt-1">
-                  Refer to Cross Country Mortgage for credit repair pathway.
+                  Refer to our lending partner for credit repair pathway.
                   Show client their target score and estimated max home price
                   once they reach 600+.
                 </p>
@@ -1379,15 +1379,15 @@ export default function WizardShell({ onTabChange }: Props) {
                 </div>
               </div>
 
-              {/* Cross Country Flags */}
+              {/* Lending Partner Flags */}
               {ccFlags.length > 0 && (
                 <div className="bg-amber-50 border-2 border-amber-400 rounded-xl px-5 py-4 mb-5">
                   <h4 className="font-bold text-amber-800 mb-2">
-                    ⚠️ Cross Country Mortgage Referral Recommended
+                    ⚠️ Lending Partner Referral Recommended
                   </h4>
                   <p className="text-sm text-amber-700 mb-2">
                     This client may be a stronger candidate for our lending
-                    partner at Cross Country Mortgage. They specialize in complex
+                    partner. They specialize in complex
                     files — including self-employment, new jobs, employment gaps,
                     and credit repair pathways. Make the introduction as the
                     agent of record.
@@ -1408,8 +1408,8 @@ export default function WizardShell({ onTabChange }: Props) {
                   </h4>
                   <p className="text-sm text-red-700">
                     Based on the client&apos;s profile, none of the 5 programs
-                    are a current match. Consider referring to Cross Country
-                    Mortgage or reviewing the disqualification reasons below.
+                    are a current match. Consider referring to our lending
+                    partner or reviewing the disqualification reasons below.
                   </p>
                 </div>
               )}
@@ -1714,7 +1714,7 @@ export default function WizardShell({ onTabChange }: Props) {
                 <h4 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "#111111", marginBottom: "8px" }}>Next Steps</h4>
                 {ccFlags.length > 0 && (
                   <p style={{ fontSize: "0.875rem", color: "#6B6B6B", lineHeight: "1.6", marginBottom: "10px" }}>
-                    Introduce the client to our lending partner at Cross Country Mortgage for specialized support with their file.
+                    Introduce the client to our lending partner for specialized support with their file.
                   </p>
                 )}
                 <p style={{ fontSize: "0.875rem", color: "#6B6B6B", lineHeight: "1.6", marginBottom: "10px" }}>

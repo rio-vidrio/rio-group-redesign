@@ -92,14 +92,14 @@ export default function Step7Results({ client, results, ccFlags, onRestart }: Pr
           </div>
         </div>
 
-        {/* Cross Country Flags */}
+        {/* Lending Partner Flags */}
         {ccFlags.length > 0 && (
           <div className="bg-amber-50 border-2 border-amber-400 rounded-xl px-5 py-4 mb-6">
             <h3 className="font-bold text-amber-800 mb-2">
-              ⚠️ Cross Country Mortgage Referral Recommended
+              ⚠️ Lending Partner Referral Recommended
             </h3>
             <p className="text-sm text-amber-700 mb-2">
-              This client may be a stronger candidate for our lending partner at Cross Country Mortgage.
+              This client may be a stronger candidate for our lending partner.
               They specialize in complex files — including self-employment, new jobs, employment gaps,
               and credit repair pathways. Make the introduction as the agent of record.
             </p>
@@ -119,7 +119,7 @@ export default function Step7Results({ client, results, ccFlags, onRestart }: Pr
             </h3>
             <p className="text-sm text-red-700">
               Based on the client&apos;s profile, none of the 5 programs are a current match.
-              Consider referring to Cross Country Mortgage or reviewing the disqualification reasons below.
+              Consider referring to our lending partner or reviewing the disqualification reasons below.
             </p>
           </div>
         )}
@@ -343,8 +343,7 @@ export default function Step7Results({ client, results, ccFlags, onRestart }: Pr
           <h3 className="font-bold mb-2">Next Steps</h3>
           {ccFlags.length > 0 ? (
             <p className="text-sm text-gray-700">
-              Introduce the client to our lending partner at Cross Country Mortgage
-              for specialized support with their file.
+              Introduce the client to our lending partner for specialized support with their file.
             </p>
           ) : (
             <p className="text-sm text-gray-700">

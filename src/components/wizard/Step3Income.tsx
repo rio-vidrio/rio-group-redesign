@@ -148,7 +148,7 @@ export default function Step3Income({ client, update }: Props) {
             />
             {client.reducesNetIncome === "yes" && (
               <div className="mt-3 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-sm text-amber-800">
-                <strong>⚠️ Complex income file</strong> — Recommend Cross Country Mortgage partner for this client.
+                <strong>⚠️ Complex income file</strong> — Recommend our lending partner for this client.
               </div>
             )}
           </div>
@@ -195,8 +195,8 @@ export default function Step3Income({ client, update }: Props) {
                 <strong>⚠️ Variable income history required</strong>
                 <p className="mt-1">
                   Variable income requires 12 months of history to be used for qualifying. Consider waiting
-                  until that threshold is met before applying for Programs 1 or 2, or refer to Cross Country
-                  Mortgage if they need to move sooner.
+                  until that threshold is met before applying for Programs 1 or 2, or refer to our lending
+                  partner if they need to move sooner.
                 </p>
               </div>
             )}

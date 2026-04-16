@@ -587,13 +587,13 @@ export function evaluateEligibility(
 export function getCrossCountryFlags(client: ClientData): string[] {
   const flags: string[] = [];
   if (client.creditScore > 0 && client.creditScore < 580) {
-    flags.push("Credit score below 580 — refer to Cross Country Mortgage for credit repair pathway");
+    flags.push("Credit score below 580 — refer to our lending partner for credit repair pathway");
   }
   if (client.isSelfEmployed === "yes" && client.reducesNetIncome === "yes") {
     flags.push("Self-employed and reduces net income on taxes — complex income file");
   }
   if (client.hasVariableIncome === "yes" && client.hasVariableIncomeHistory === "no") {
-    flags.push("Variable/commission income without 12 months of documented history — refer to Cross Country Mortgage if client needs to move sooner");
+    flags.push("Variable/commission income without 12 months of documented history — refer to our lending partner if client needs to move sooner");
   }
   return flags;
 }

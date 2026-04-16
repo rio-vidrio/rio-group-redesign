@@ -75,7 +75,7 @@ const PROGRAMS = {
     note: "U.S. citizens and permanent residents only — No DACA",
   },
   ccConvDPA: {
-    name: "Cross Country Conventional DPA",
+    name: "Conventional DPA",
     minScore: "660+",
     bullets: [
       "Income limit: $146K",
@@ -937,11 +937,43 @@ export default function ExistingHomeowner() {
                         );
                       }
 
-                      // c === 4 — no equity
+                      // c === 4 — no equity: FHA to FHA still an option, but original payment can't be offset
                       return (
                         <>
-                          <DisqualifierCard reason="FHA to FHA not available — the current home does not have 25%+ equity. Without sufficient equity the current FHA payment cannot be offset." />
-                          {fhaToConvCard}
+                          <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#111111", margin: 0 }}>Available Options</h3>
+                          <PathCard
+                            title="FHA → FHA Available ✅"
+                            borderColor="green"
+                            bullets={[
+                              { icon: "✅", text: "Family size has increased" },
+                              {
+                                icon: "✅",
+                                text: (
+                                  <span>
+                                    Home has been vacated /{" "}
+                                    <span style={{ fontWeight: 600 }}>vacating residence</span>
+                                    <VacatingTooltip /> established
+                                  </span>
+                                ),
+                              },
+                            ]}
+                            flagBox={{
+                              color: "amber",
+                              text: "Current home has less than 25% equity — the existing FHA mortgage payment cannot be offset. The client must qualify carrying both payments in their DTI.",
+                            }}
+                            programs={["fhaDPA", "fhaSolar"]}
+                          />
+                          <PathCard
+                            title="FHA → Conventional (Always Available)"
+                            badge={{ text: "Always Available", color: "gray" }}
+                            borderColor="red"
+                            bullets={[
+                              { icon: "✅", text: "5% down, no restrictions" },
+                              { icon: "✅", text: "Can rent current home to offset mortgage" },
+                              { icon: "✅", text: "No rental history required" },
+                            ]}
+                            programs={["ccConvDPA", "selfConv"]}
+                          />
                         </>
                       );
                     })()}

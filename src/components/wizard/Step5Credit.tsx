@@ -77,7 +77,7 @@ export default function Step5Credit({ client, update }: Props) {
           />
           {client.creditScore > 0 && client.creditScore < 580 && (
             <div className="mt-2 bg-red-50 border border-red-300 rounded-lg px-4 py-3 text-sm text-red-800">
-              <strong>⛔ Score below 580</strong> — Refer to Cross Country Mortgage for credit repair pathway.
+              <strong>⛔ Score below 580</strong> — Refer to our lending partner for credit repair pathway.
               Show client their target score and estimated max home price once they reach 600+.
             </div>
           )}
