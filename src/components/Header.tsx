@@ -1,7 +1,5 @@
 "use client";
 
-import Image from "next/image";
-
 export default function Header() {
   return (
     <header className="sticky top-0 z-50 no-print">
@@ -25,7 +23,7 @@ export default function Header() {
           style={{
             position: "absolute",
             inset: 0,
-            background: "linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.55) 100%)",
+            background: "linear-gradient(to right, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.6) 100%)",
             zIndex: 0,
           }}
         />
@@ -38,57 +36,53 @@ export default function Header() {
             zIndex: 1,
             maxWidth: "1280px",
             margin: "0 auto",
-            padding: "0 40px",
-            height: "90px",
+            padding: "0 48px",
+            height: "88px",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "7px" }}>
-            {/* Top row: Logo | Client Advisor */}
-            <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
-              <Image
-                src="/AZ-Logo-White-Strip.png"
-                alt="A.Z. & Associates"
-                width={240}
-                height={46}
-                style={{ height: "46px", width: "auto", display: "block" }}
-                priority
-              />
-              <div style={{ width: "1px", height: "32px", background: "rgba(255,255,255,0.3)" }} />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+            {/* Top row */}
+            <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
               <span
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
-                  color: "rgba(255,255,255,0.92)",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  letterSpacing: "0.18em",
+                  color: "rgba(255,255,255,0.97)",
+                  fontSize: "18px",
+                  fontWeight: 700,
+                  letterSpacing: "0.2em",
+                  textTransform: "uppercase",
+                }}
+              >
+                A.Z. &amp; Associates
+              </span>
+              <span style={{ width: "1px", height: "22px", background: "rgba(255,255,255,0.25)", display: "inline-block" }} />
+              <span
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  color: "rgba(255,255,255,0.55)",
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  letterSpacing: "0.28em",
                   textTransform: "uppercase",
                 }}
               >
                 Client Advisor
               </span>
             </div>
-            {/* Bottom: Designed by The Rio Group — centered */}
-            <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-              <span
-                style={{
-                  fontSize: "9px",
-                  fontWeight: 500,
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.55)",
-                }}
-              >
-                Designed by
-              </span>
-              <Image
-                src="/rio-group-landscape.png"
-                alt="The Rio Group"
-                width={72}
-                height={18}
-                style={{ opacity: 0.65 }}
-              />
+            {/* Bottom: Designed by */}
+            <div
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "9px",
+                fontWeight: 400,
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+                color: "rgba(255,255,255,0.3)",
+              }}
+            >
+              Designed by The Rio Group
             </div>
           </div>
         </div>
@@ -96,45 +90,47 @@ export default function Header() {
         {/* Mobile */}
         <div
           className="sm:hidden flex items-center justify-center"
-          style={{ position: "relative", zIndex: 1, height: "68px", padding: "0 16px" }}
+          style={{ position: "relative", zIndex: 1, height: "66px", padding: "0 24px" }}
         >
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "5px" }}>
-            {/* Top row: Logo | Client Advisor */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <Image
-                src="/AZ-Logo-White-Strip.png"
-                alt="A.Z. & Associates"
-                width={150}
-                height={29}
-                style={{ height: "29px", width: "auto", display: "block" }}
-                priority
-              />
-              <div style={{ width: "1px", height: "20px", background: "rgba(255,255,255,0.3)" }} />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
               <span
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
-                  color: "rgba(255,255,255,0.92)",
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  letterSpacing: "0.14em",
+                  color: "rgba(255,255,255,0.97)",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                }}
+              >
+                A.Z. &amp; Associates
+              </span>
+              <span style={{ width: "1px", height: "16px", background: "rgba(255,255,255,0.25)", display: "inline-block" }} />
+              <span
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  color: "rgba(255,255,255,0.5)",
+                  fontSize: "9px",
+                  fontWeight: 500,
+                  letterSpacing: "0.22em",
                   textTransform: "uppercase",
                 }}
               >
                 Client Advisor
               </span>
             </div>
-            {/* Bottom: Designed by — centered */}
-            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-              <span style={{ fontSize: "7px", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)" }}>
-                Designed by
-              </span>
-              <Image
-                src="/rio-group-landscape.png"
-                alt="The Rio Group"
-                width={52}
-                height={13}
-                style={{ opacity: 0.6 }}
-              />
+            <div
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "7px",
+                fontWeight: 400,
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                color: "rgba(255,255,255,0.28)",
+              }}
+            >
+              Designed by The Rio Group
             </div>
           </div>
         </div>
