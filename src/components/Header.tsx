@@ -44,19 +44,17 @@ export default function Header() {
             justifyContent: "center",
           }}
         >
-          {/* Center — title + courtesy */}
+          {/* Center — logo + courtesy */}
           <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                color: "rgba(255,255,255,0.95)",
-                fontSize: "19px",
-                fontWeight: 600,
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-              }}
-            >
-              A.Z. &amp; Associates&nbsp;&nbsp;|&nbsp;&nbsp;Client Advisor
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "4px" }}>
+              <Image
+                src="/AZ-Logo-White-Stack.png"
+                alt="A.Z. & Associates"
+                width={260}
+                height={81}
+                style={{ height: "52px", width: "auto", display: "block" }}
+                priority
+              />
             </div>
             <div
               style={{
@@ -95,17 +93,15 @@ export default function Header() {
           style={{ position: "relative", zIndex: 1, height: "68px", padding: "0 16px" }}
         >
           <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                color: "rgba(255,255,255,0.93)",
-                fontSize: "13px",
-                fontWeight: 600,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
-            >
-              A.Z. &amp; Associates | Client Advisor
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "3px" }}>
+              <Image
+                src="/AZ-Logo-White-Stack.png"
+                alt="A.Z. & Associates"
+                width={180}
+                height={56}
+                style={{ height: "36px", width: "auto", display: "block" }}
+                priority
+              />
             </div>
             <div
               style={{

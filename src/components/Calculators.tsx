@@ -1437,9 +1437,9 @@ function BusinessOwnerCalc() {
   const fhaRate = rates.fha || 5.75;
   const bsRate = convRate + 1.5;
 
-  /* Full Doc (FHA) state */
+  /* Full Doc (Conventional) state */
   const [fdPrice, setFdPrice] = useState(450000);
-  const [fdDownPct, setFdDownPct] = useState(3.5);
+  const [fdDownPct, setFdDownPct] = useState(5);
   const [fdRate, setFdRate] = useState(0);
   const [fdTaxRate, setFdTaxRate] = useState(0.45);
   const [fdTaxDollars, setFdTaxDollars] = useState(Math.round(450000 * 0.0045));
@@ -1453,7 +1453,7 @@ function BusinessOwnerCalc() {
   const [bsTaxDollars, setBsTaxDollars] = useState(Math.round(450000 * 0.0045));
   const [bsHoa, setBsHoa] = useState(0);
 
-  useEffect(() => { setFdRate(fhaRate); }, [fhaRate]);
+  useEffect(() => { setFdRate(convRate); }, [convRate]);
   useEffect(() => { setBsRateAdj(bsRate); }, [bsRate]);
 
   const [clientName, setClientName] = useState("");
@@ -1506,21 +1506,19 @@ function BusinessOwnerCalc() {
   });
 
   const insurance = 1350;
-  const fhaMipUpfront = 0.0175;
-  const fhaMipAnnual = 0.0055;
+  const convPmiRate = 0.007; // 0.7%/yr, drops off at 20% equity
 
-  /* Full Doc (FHA) calc */
+  /* Full Doc (Conventional) calc */
   const fdCalc = (() => {
     const down = fdPrice * (fdDownPct / 100);
-    const baseLoan = fdPrice - down;
-    const loanWithMip = fdDownPct < 20 ? baseLoan * (1 + fhaMipUpfront) : baseLoan;
-    const pi = calculateMonthlyPayment(loanWithMip, fdRate, 30);
+    const loan = fdPrice - down;
+    const pi = calculateMonthlyPayment(loan, fdRate, 30);
     const tax = (fdPrice * (fdTaxRate / 100)) / 12;
     const ins = insurance / 12;
-    const mip = fdDownPct < 20 ? (baseLoan * fhaMipAnnual) / 12 : 0;
-    const piti = pi + tax + ins + mip;
+    const pmi = fdDownPct < 20 ? (loan * convPmiRate) / 12 : 0;
+    const piti = pi + tax + ins + pmi;
     const total = piti + fdHoa;
-    return { pi, tax, ins, mip, piti, total, down, loan: baseLoan, loanWithMip };
+    return { pi, tax, ins, pmi, piti, total, down, loan };
   })();
 
   /* Bank Statement calc — no PMI/MIP */
@@ -1574,17 +1572,17 @@ function BusinessOwnerCalc() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               {/* Full Doc column */}
               <div style={{ border: "1px solid #BFDBFE", borderRadius: 12, padding: 16, background: "#EFF6FF" }}>
-                <div style={{ fontWeight: 700, color: "#1E40AF", marginBottom: 12, fontSize: 13, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Full Doc (FHA)</div>
+                <div style={{ fontWeight: 700, color: "#1E40AF", marginBottom: 12, fontSize: 13, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Full Doc (Conv)</div>
                 {[
                   { label: "Purchase Price", value: fmt(fdPrice) },
                   { label: `Down (${fdDownPct}%)`, value: fmt(fdCalc.down) },
                   { label: "Loan Amount", value: fmt(fdCalc.loan) },
-                  { label: "Rate (FHA)", value: `${fdRate.toFixed(2)}%` },
+                  { label: "Rate (Conv)", value: `${fdRate.toFixed(2)}%` },
                   { label: "Tax Rate", value: `${fdTaxRate}%` },
-                  { label: "MIP", value: fdCalc.mip > 0 ? `${fmt(fdCalc.mip)}/mo` : "None" },
+                  { label: "PMI", value: fdCalc.pmi > 0 ? `${fmt(fdCalc.pmi)}/mo` : "None" },
                   { label: "Monthly HOA", value: fdHoa > 0 ? fmt(fdHoa) : "None" },
                   { label: "P&I", value: fmt(fdCalc.pi) },
-                  { label: "PITI + MIP", value: fmt(fdCalc.piti) },
+                  { label: "PITI + PMI", value: fmt(fdCalc.piti) },
                 ].map((r, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0", borderBottom: "1px solid #DBEAFE" }}>
                     <span style={{ color: "#1D4ED8" }}>{r.label}</span>
@@ -1594,6 +1592,7 @@ function BusinessOwnerCalc() {
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700, marginTop: 8, paddingTop: 8, color: "#1E3A8A" }}>
                   <span>Total Monthly</span><span>{fmt(fdCalc.total)}</span>
                 </div>
+
               </div>
 
               {/* Bank Statement column */}
@@ -1628,7 +1627,7 @@ function BusinessOwnerCalc() {
               Monthly Difference: Bank statement is {fmt(Math.abs(paymentDiff))}/mo {paymentDiff > 0 ? "more" : "less"} than full doc
             </div>
             <div style={{ fontSize: 11, color: "#666" }}>
-              Down payment difference: Bank statement requires {fmt(Math.abs(downDiff))} {downDiff > 0 ? "more" : "less"} upfront. No PMI/MIP on bank statement saves {fmt(fdCalc.mip)}/mo.
+              Down payment difference: Bank statement requires {fmt(Math.abs(downDiff))} {downDiff > 0 ? "more" : "less"} upfront. No PMI on bank statement saves {fmt(fdCalc.pmi)}/mo.
             </div>
           </div>
 
@@ -1657,15 +1656,15 @@ function BusinessOwnerCalc() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 no-print">
           {/* Full Doc inputs */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <h4 className="font-bold text-blue-800 mb-1">Full Doc (FHA)</h4>
-            <p className="text-xs text-blue-600 mb-3">Tax returns required. 3.5% min down. MIP for life of loan.</p>
+            <h4 className="font-bold text-blue-800 mb-1">Full Doc (Conventional)</h4>
+            <p className="text-xs text-blue-600 mb-3">Tax returns required. 5% min down. PMI drops off at 20% equity.</p>
             <div className="space-y-3">
               <MoneyInput label="Purchase Price" value={fdPrice} onChange={setFdPrice} />
               <div>
                 <DownPaymentInput price={fdPrice} pct={fdDownPct} onChange={setFdDownPct} label="Down Payment" />
                 <div className="mt-1 text-xs text-blue-600 font-medium pl-1">= {fmt(fdCalc.down)} down · Loan {fmt(fdCalc.loan)}</div>
               </div>
-              <NumberInput label="Rate (FHA)" value={fdRate} onChange={setFdRate} suffix="%" step="0.125" />
+              <NumberInput label="Rate (Conv)" value={fdRate} onChange={setFdRate} suffix="%" step="0.125" />
               <TaxInput price={fdPrice} taxDollars={fdTaxDollars} onTaxDollarsChange={setFdTaxDollars} taxRate={fdTaxRate} onTaxRateChange={setFdTaxRate} label="Property Taxes" />
               <MoneyInput label="Monthly HOA" value={fdHoa} onChange={setFdHoa} />
             </div>
@@ -1693,7 +1692,7 @@ function BusinessOwnerCalc() {
           <div className="bg-blue-50 border-2 border-blue-400 rounded-xl p-4 text-center">
             <div className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Full Doc Monthly</div>
             <div className="text-3xl font-bold text-blue-900 mt-1">{fmt(fdCalc.total)}</div>
-            <div className="text-xs text-blue-500 mt-1">P&I {fmt(fdCalc.pi)} + Tax/Ins + MIP{fdHoa > 0 ? " + HOA" : ""}</div>
+            <div className="text-xs text-blue-500 mt-1">P&I {fmt(fdCalc.pi)} + Tax/Ins + PMI{fdHoa > 0 ? " + HOA" : ""}</div>
           </div>
           <div className="bg-orange-50 border-2 border-orange-400 rounded-xl p-4 text-center">
             <div className="text-xs text-orange-600 font-semibold uppercase tracking-wide">Bank Statement Monthly</div>
@@ -1715,7 +1714,7 @@ function BusinessOwnerCalc() {
         <div className="grid grid-cols-2 gap-3 mb-4 no-print">
           <ResultCard label="FULL DOC P&I" value={fmt(fdCalc.pi)} sub="Principal & Interest only" />
           <ResultCard label="BANK STMT P&I" value={fmt(bsCalc.pi)} sub="Principal & Interest only" />
-          <ResultCard label="FULL DOC PITI + MIP" value={fmt(fdCalc.piti)} sub={`Includes MIP of ${fmt(fdCalc.mip)}/mo`} />
+          <ResultCard label="FULL DOC PITI + PMI" value={fmt(fdCalc.piti)} sub={`Includes PMI of ${fmt(fdCalc.pmi)}/mo`} />
           <ResultCard label="BANK STMT PITI" value={fmt(bsCalc.piti)} sub="No PMI or MIP included" />
           <ResultCard label="FULL DOC DOWN" value={fmt(fdCalc.down)} sub={`${fdDownPct}% of ${fmt(fdPrice)}`} />
           <ResultCard label="BANK STMT DOWN" value={fmt(bsCalc.down)} sub={`${bsDownPct}% of ${fmt(bsPrice)}`} />
@@ -1731,7 +1730,7 @@ function BusinessOwnerCalc() {
             That&apos;s <strong className="text-rio-red">{fmt(Math.abs(downDiff))} {downDiff > 0 ? "more" : "less"}</strong> upfront for bank statement.
           </p>
           <p className="text-sm text-gray-700 mt-2">
-            Bank statement has no MIP, saving <strong>{fmt(fdCalc.mip)}/mo</strong>, but the higher rate adds <strong>{fmt(Math.abs(bsCalc.pi - fdCalc.pi))}/mo</strong> to P&I.
+            Bank statement has no PMI, saving <strong>{fmt(fdCalc.pmi)}/mo</strong>, but the higher rate adds <strong>{fmt(Math.abs(bsCalc.pi - fdCalc.pi))}/mo</strong> to P&I.
             Net monthly difference: <strong className="text-rio-red">{fmt(Math.abs(paymentDiff))}/mo</strong>.
           </p>
         </div>
@@ -1739,13 +1738,12 @@ function BusinessOwnerCalc() {
         {/* Pros / Cons */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-            <h4 className="font-bold text-blue-800 mb-1">Full Doc (FHA) Notes</h4>
+            <h4 className="font-bold text-blue-800 mb-1">Full Doc (Conventional) Notes</h4>
             <ul className="text-blue-700 space-y-1">
               <li>✅ Lower interest rate</li>
-              <li>✅ Only 3.5% down payment</li>
-              <li>✅ May qualify for DPA programs</li>
+              <li>✅ 5% minimum down payment</li>
+              <li>✅ PMI drops off at 20% equity</li>
               <li>⚠️ Requires 2 years tax returns</li>
-              <li>⚠️ MIP for life of loan</li>
               <li>⚠️ Income must qualify on paper</li>
             </ul>
           </div>
