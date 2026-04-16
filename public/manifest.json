@@ -1,22 +1,22 @@
 {
-  "name": "Rio Group Client Advisor",
-  "short_name": "Rio Client Advisor",
-  "description": "The Rio Group — Built Different | Client Advisor powered by AZ & Associates",
+  "name": "AZ & Associates | Client Advisor",
+  "short_name": "AZ & Associates",
+  "description": "AZ & Associates — Home Buying Advisor",
   "start_url": "/",
   "display": "standalone",
   "scope": "/",
   "orientation": "portrait-primary",
-  "theme_color": "#C8202A",
-  "background_color": "#111111",
+  "theme_color": "#0A0A0A",
+  "background_color": "#0A0A0A",
   "icons": [
     {
-      "src": "/icon-192x192.png?v=3",
+      "src": "/icon-192x192.png?v=5",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512x512.png?v=3",
+      "src": "/icon-512x512.png?v=5",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -25,8 +25,8 @@
   "categories": ["business", "finance"],
   "screenshots": [
     {
-      "src": "/rio-square.png",
-      "sizes": "540x720",
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow"
     }
@@ -36,7 +36,7 @@
       "name": "Start Consultation",
       "short_name": "Consultation",
       "description": "Launch the client wizard",
-      "url": "/?step=wizard",
+      "url": "/",
       "icons": [
         {
           "src": "/icon-192x192.png",

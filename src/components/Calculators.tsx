@@ -5,7 +5,7 @@ import { useReactToPrint } from "react-to-print";
 import html2canvas from "html2canvas";
 import { calculateMonthlyPayment } from "@/lib/loanPrograms";
 import { getRates, Rates, defaultRates } from "@/lib/rateStore";
-import { TRG_LOGO_BLACK_B64, AZ_LOGO_BLACK_B64 } from "@/lib/printLogos";
+import { AZ_LOGO_BLACK_B64 } from "@/lib/printLogos";
 
 /* ── Floating Quick Calculator ── */
 function FloatingCalc() {
@@ -514,17 +514,13 @@ function PaymentCalc() {
         {/* ── SUMMARY CARD (used for print AND jpg export) ── */}
         <div ref={summaryRef} id="summary-card" className="print-only" style={{ maxWidth: 680, background: "#FFFFFF", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
           {/* Header band — black logos on white for reliable printing */}
-          <div style={{ padding: "20px 28px", borderBottom: "3px solid #C8202A", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group" style={{ height: 44, width: "auto", display: "block" } as React.CSSProperties} />
-              <div>
-                <div style={{ color: "#111", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" as const }}>The Rio Group</div>
-                <div style={{ color: "#999", fontSize: 9, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Built Different</div>
-              </div>
-            </div>
+          <div style={{ padding: "20px 28px", borderBottom: "3px solid #C8202A", display: "flex", alignItems: "center", gap: 14 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 36, width: "auto", display: "block" } as React.CSSProperties} />
+            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 48, width: "auto", display: "block" } as React.CSSProperties} />
+            <div>
+              <div style={{ color: "#111", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>AZ &amp; Associates</div>
+              <div style={{ color: "#999", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Client Advisor</div>
+            </div>
           </div>
 
           {/* Title bar */}
@@ -571,7 +567,7 @@ function PaymentCalc() {
 
           {/* Footer */}
           <div style={{ borderTop: "2px solid #C8202A", padding: "12px 28px 16px", textAlign: "center" as const }}>
-            <div style={{ fontSize: 10, color: "#6B6B6B", fontWeight: 500 }}>The Rio Group — Powered by AZ &amp; Associates</div>
+            <div style={{ fontSize: 10, color: "#6B6B6B", fontWeight: 500 }}>AZ &amp; Associates — Home Buying Advisor</div>
             <div style={{ fontSize: 8, color: "#ABABAB", marginTop: 3 }}>All figures are estimates for informational purposes only. Subject to lender approval and qualification.</div>
           </div>
         </div>
@@ -1148,17 +1144,13 @@ function NewBuildCalc() {
         {/* ── SUMMARY CARD (used for print AND jpg export) ── */}
         <div ref={summaryRef} id="nb-vs-resale-summary" className="print-only" style={{ maxWidth: 680, background: "#FFFFFF", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
           {/* Header band — black logos on white so they always print */}
-          <div style={{ padding: "20px 28px", borderBottom: "3px solid #C8202A", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group" style={{ height: 44, width: "auto", display: "block" } as React.CSSProperties} />
-              <div>
-                <div style={{ color: "#111", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" as const }}>The Rio Group</div>
-                <div style={{ color: "#999", fontSize: 9, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Built Different</div>
-              </div>
-            </div>
+          <div style={{ padding: "20px 28px", borderBottom: "3px solid #C8202A", display: "flex", alignItems: "center", gap: 14 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 36, width: "auto", display: "block" } as React.CSSProperties} />
+            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 48, width: "auto", display: "block" } as React.CSSProperties} />
+            <div>
+              <div style={{ color: "#111", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>AZ &amp; Associates</div>
+              <div style={{ color: "#999", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Client Advisor</div>
+            </div>
           </div>
 
           {/* Title bar */}
@@ -1240,7 +1232,7 @@ function NewBuildCalc() {
 
           {/* Footer */}
           <div style={{ padding: "12px 28px 16px", borderTop: "1px solid #E8E8E8", textAlign: "center" as const, fontSize: 9, color: "#999" }}>
-            The Rio Group — Powered by AZ &amp; Associates. All figures are estimates for informational purposes only.
+            AZ &amp; Associates — Home Buying Advisor. All figures are estimates for informational purposes only.
           </div>
         </div>
 
@@ -1553,17 +1545,13 @@ function BusinessOwnerCalc() {
         {/* ── PRINT SUMMARY CARD ── */}
         <div ref={summaryRef} className="print-only" style={{ maxWidth: 680, background: "#FFFFFF", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
           {/* Header */}
-          <div style={{ padding: "20px 28px", borderBottom: "3px solid #C8202A", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group" style={{ height: 44, width: "auto", display: "block" }} />
-              <div>
-                <div style={{ color: "#111", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" as const }}>The Rio Group</div>
-                <div style={{ color: "#999", fontSize: 9, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Built Different</div>
-              </div>
-            </div>
+          <div style={{ padding: "20px 28px", borderBottom: "3px solid #C8202A", display: "flex", alignItems: "center", gap: 14 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 36, width: "auto", display: "block" }} />
+            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 48, width: "auto", display: "block" }} />
+            <div>
+              <div style={{ color: "#111", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>AZ &amp; Associates</div>
+              <div style={{ color: "#999", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Client Advisor</div>
+            </div>
           </div>
 
           {/* Title */}
@@ -1646,7 +1634,7 @@ function BusinessOwnerCalc() {
 
           {/* Footer */}
           <div style={{ padding: "12px 28px 16px", borderTop: "1px solid #E8E8E8", textAlign: "center" as const, fontSize: 9, color: "#999" }}>
-            The Rio Group — Powered by AZ &amp; Associates. All figures are estimates for informational purposes only. Subject to lender approval.
+            AZ &amp; Associates — Home Buying Advisor. All figures are estimates for informational purposes only. Subject to lender approval.
           </div>
         </div>
 
@@ -1993,17 +1981,13 @@ function SellerNetCalc({ importedPayoff }: { importedPayoff: number | null }) {
         {/* ── SUMMARY CARD (used for print AND jpg export) ── */}
         <div ref={summaryRef} id="seller-summary-card" className="print-only" style={{ maxWidth: 680, background: "#FFFFFF", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
           {/* Header band — black logos on white for reliable printing */}
-          <div style={{ padding: "20px 28px", borderBottom: "3px solid #C8202A", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group" style={{ height: 44, width: "auto", display: "block" } as React.CSSProperties} />
-              <div>
-                <div style={{ color: "#111", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" as const }}>The Rio Group</div>
-                <div style={{ color: "#999", fontSize: 9, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Built Different</div>
-              </div>
-            </div>
+          <div style={{ padding: "20px 28px", borderBottom: "3px solid #C8202A", display: "flex", alignItems: "center", gap: 14 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 36, width: "auto", display: "block" } as React.CSSProperties} />
+            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 48, width: "auto", display: "block" } as React.CSSProperties} />
+            <div>
+              <div style={{ color: "#111", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>AZ &amp; Associates</div>
+              <div style={{ color: "#999", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Client Advisor</div>
+            </div>
           </div>
 
           {/* Title bar */}
@@ -2049,7 +2033,7 @@ function SellerNetCalc({ importedPayoff }: { importedPayoff: number | null }) {
 
           {/* Footer */}
           <div style={{ borderTop: "2px solid #C8202A", padding: "12px 28px 16px", textAlign: "center" as const }}>
-            <div style={{ fontSize: 10, color: "#6B6B6B", fontWeight: 500 }}>The Rio Group — Powered by AZ &amp; Associates</div>
+            <div style={{ fontSize: 10, color: "#6B6B6B", fontWeight: 500 }}>AZ &amp; Associates — Home Buying Advisor</div>
             <div style={{ fontSize: 8, color: "#ABABAB", marginTop: 3 }}>All figures are estimates for informational purposes only. Subject to lender approval and qualification.</div>
           </div>
         </div>

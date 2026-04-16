@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { TRG_LOGO_BLACK_B64, AZ_LOGO_BLACK_B64 } from "@/lib/printLogos";
+import { AZ_LOGO_BLACK_B64 } from "@/lib/printLogos";
 import { useReactToPrint } from "react-to-print";
 import { ClientData, ProgramEligibility } from "@/lib/loanPrograms";
 
@@ -40,13 +40,14 @@ export default function Step7Results({ client, results, ccFlags, onRestart }: Pr
       <div ref={printRef} className="print-container">
         {/* Print Header */}
         <div className="print-only mb-6">
-          <div className="flex justify-between items-center pb-3 mb-3 border-b-2 border-[#C8202A]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group"
-              style={{height:48,width:"auto",display:"block",printColorAdjust:"exact",WebkitPrintColorAdjust:"exact"} as React.CSSProperties} />
+          <div className="flex items-center gap-3 pb-3 mb-3 border-b-2 border-[#C8202A]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates"
-              style={{height:36,width:"auto",display:"block",printColorAdjust:"exact",WebkitPrintColorAdjust:"exact"} as React.CSSProperties} />
+              style={{height:48,width:"auto",display:"block",printColorAdjust:"exact",WebkitPrintColorAdjust:"exact"} as React.CSSProperties} />
+            <div>
+              <div style={{ color: "#111", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" } as React.CSSProperties}>AZ &amp; Associates</div>
+              <div style={{ color: "#999", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" } as React.CSSProperties}>Client Advisor</div>
+            </div>
           </div>
           <p className="text-sm text-gray-500">
             Prepared for {client.firstName} {client.lastName} | {client.date}
@@ -354,7 +355,7 @@ export default function Step7Results({ client, results, ccFlags, onRestart }: Pr
 
         {/* Disclaimer */}
         <div className="mt-4 text-xs text-gray-400 text-center">
-          The Rio Group — powered by AZ &amp; Associates
+          AZ &amp; Associates — Home Buying Advisor
           <br />
           This is an estimate for informational purposes only. All figures subject to lender approval.
         </div>

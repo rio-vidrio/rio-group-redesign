@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useReactToPrint } from "react-to-print";
-import { TRG_LOGO_BLACK_B64, AZ_LOGO_BLACK_B64 } from "@/lib/printLogos";
+import { AZ_LOGO_BLACK_B64 } from "@/lib/printLogos";
 import {
   ClientData,
   defaultClientData,
@@ -1333,17 +1333,13 @@ export default function WizardShell({ onTabChange }: Props) {
             <div ref={printRef} className="print-container">
               {/* Print Header — base64 logos for reliable print */}
               <div className="print-only mb-6">
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 12, borderBottom: "3px solid #C8202A", marginBottom: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group" style={{ height: 44, width: "auto", display: "block" }} />
-                    <div>
-                      <div style={{ color: "#111", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" as const }}>The Rio Group</div>
-                      <div style={{ color: "#999", fontSize: 9, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Built Different</div>
-                    </div>
-                  </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 12, borderBottom: "3px solid #C8202A", marginBottom: 12 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 36, width: "auto", display: "block" }} />
+                  <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 48, width: "auto", display: "block" }} />
+                  <div>
+                    <div style={{ color: "#111", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>AZ &amp; Associates</div>
+                    <div style={{ color: "#999", fontSize: 10, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Client Advisor</div>
+                  </div>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
@@ -1733,7 +1729,7 @@ export default function WizardShell({ onTabChange }: Props) {
 
               {/* Disclaimer */}
               <div style={{ marginTop: "20px", fontSize: "0.75rem", color: "#9B9B9B", textAlign: "center" }}>
-                The Rio Group — powered by AZ &amp; Associates
+                AZ &amp; Associates — Home Buying Advisor
                 <br />
                 All estimates for informational purposes only. Subject to lender approval.
               </div>
