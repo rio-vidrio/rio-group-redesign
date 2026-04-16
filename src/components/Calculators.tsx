@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
+import html2canvas from "html2canvas";
 import { calculateMonthlyPayment } from "@/lib/loanPrograms";
 import { getRates, Rates, defaultRates } from "@/lib/rateStore";
 import { TRG_LOGO_BLACK_B64, AZ_LOGO_BLACK_B64 } from "@/lib/printLogos";
@@ -97,6 +98,10 @@ function FloatingCalc() {
   );
 }
 
+function safeName(s: string) {
+  return s.trim().replace(/[^a-zA-Z0-9 _-]/g, "").replace(/\s+/g, "-");
+}
+
 function fmt(n: number) {
   return "$" + n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
@@ -119,6 +124,41 @@ const labelStyle: React.CSSProperties = {
   marginBottom: "7px",
 };
 
+function fmtComma(n: number): string {
+  return n ? n.toLocaleString("en-US") : "";
+}
+function parseComma(s: string): number {
+  return Number(s.replace(/,/g, "")) || 0;
+}
+
+function DownPaymentInput({ price, pct, onChange, label }: {
+  price: number; pct: number; onChange: (pct: number) => void; label?: string;
+}) {
+  const dollars = Math.round(price * pct / 100);
+  const handleDollars = (d: number) => {
+    if (price > 0) onChange(Math.round((d / price) * 10000) / 100);
+  };
+  return (
+    <div>
+      {label && <label style={labelStyle}>{label}</label>}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div className="relative">
+          <input type="number" inputMode="decimal" value={pct || ""}
+            onChange={(e) => onChange(Number(e.target.value) || 0)}
+            step="0.5" style={{ ...inputStyle, paddingRight: "40px" }} placeholder="0" />
+          <span style={{ position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%)", color: "#9B9B9B", fontSize: "0.875rem" }}>%</span>
+        </div>
+        <div className="relative">
+          <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9B9B9B", fontSize: "0.875rem" }}>$</span>
+          <input type="text" inputMode="numeric" value={fmtComma(dollars)}
+            onChange={(e) => handleDollars(parseComma(e.target.value))}
+            style={{ ...inputStyle, paddingLeft: "28px" }} placeholder="0" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MoneyInput({
   label,
   value,
@@ -136,11 +176,12 @@ function MoneyInput({
       <div className="relative">
         <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9B9B9B", fontSize: "0.875rem" }}>$</span>
         <input
-          type="number"
-          value={value || ""}
-          onChange={(e) => onChange(Number(e.target.value))}
+          type="text"
+          inputMode="numeric"
+          value={fmtComma(value)}
+          onChange={(e) => onChange(parseComma(e.target.value))}
           style={{ ...inputStyle, paddingLeft: "28px" }}
-          placeholder={placeholder || "0"}
+          placeholder={placeholder ? Number(placeholder).toLocaleString("en-US") : "0"}
         />
       </div>
     </div>
@@ -249,12 +290,12 @@ function TaxInput({
         <label style={labelStyle}>{label || "Property Taxes"}</label>
         {assessorLink && (
           <a
-            href="https://mcassessor.maricopa.gov"
+            href="https://mymonsoon.com/"
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-rio-red underline font-medium hover:text-rio-red/80"
           >
-            Look up on Maricopa County Assessor ↗
+            Look up on MyMonsoon ↗
           </a>
         )}
       </div>
@@ -287,11 +328,12 @@ function TaxInput({
           <div className="relative">
             <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9B9B9B", fontSize: "0.875rem" }}>$</span>
             <input
-              type="number"
-              value={taxDollars || ""}
-              onChange={(e) => onTaxDollarsChange(Number(e.target.value))}
+              type="text"
+              inputMode="numeric"
+              value={fmtComma(taxDollars)}
+              onChange={(e) => onTaxDollarsChange(parseComma(e.target.value))}
               style={{ ...inputStyle, paddingLeft: "28px" }}
-              placeholder="1800"
+              placeholder="1,800"
             />
           </div>
           <div style={{ fontSize: "0.6875rem", color: "#9B9B9B", marginTop: "4px" }}>= {derivedRate}% of {fmt(price)}</div>
@@ -333,25 +375,49 @@ type LoanMode = "conventional" | "fha" | "va";
 function PaymentCalc() {
   const [loanMode, setLoanMode] = useState<LoanMode>("conventional");
   const [rates, setRates] = useState<Rates>(defaultRates);
-  const [price, setPrice] = useState(350000);
-  const [downPct, setDownPct] = useState(3);
-  const [rate, setRate] = useState(0);
+  const [price, setPrice] = useState(450000);
   const [term, setTerm] = useState(30);
   const [tax, setTax] = useState(0.45);
-  const [taxDollars, setTaxDollars] = useState(Math.round(350000 * 0.0045));
+  const [taxDollars, setTaxDollars] = useState(Math.round(450000 * 0.0045));
   const [insurance, setInsurance] = useState(1350);
   const [hoa, setHoa] = useState(0);
   const [pmiRate, setPmiRate] = useState(0.55); // Conventional PMI — adjustable, default 0.55%
   const [vaDisabilityWaiver, setVaDisabilityWaiver] = useState(false);
   const [clientName, setClientName] = useState("");
   const [propertyAddress, setPropertyAddress] = useState("");
+
+  /* Per-mode state: rate and down% persist when toggling between loan types */
+  const [convRate, setConvRate] = useState(0);
+  const [convDown, setConvDown] = useState(3);
+  const [fhaModeRate, setFhaModeRate] = useState(0);
+  const [fhaModeDown, setFhaModeDown] = useState(3.5);
+  const [vaModeRate, setVaModeRate] = useState(0);
+  const [vaModeDown, setVaModeDown] = useState(0);
+
+  /* Active rate/down derived from current mode */
+  const rate = loanMode === "conventional" ? convRate : loanMode === "fha" ? fhaModeRate : vaModeRate;
+  const downPct = loanMode === "conventional" ? convDown : loanMode === "fha" ? fhaModeDown : vaModeDown;
+  const setRate = (v: number) => {
+    if (loanMode === "conventional") setConvRate(v);
+    else if (loanMode === "fha") setFhaModeRate(v);
+    else setVaModeRate(v);
+  };
+  const setDownPct = (v: number) => {
+    if (loanMode === "conventional") setConvDown(v);
+    else if (loanMode === "fha") setFhaModeDown(v);
+    else setVaModeDown(v);
+  };
   const todayStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   const printRef = useRef<HTMLDivElement>(null);
+  const pdfTitle = `Rio-Group-Payment${clientName ? `-${safeName(clientName)}` : ""}`;
   const handlePrint = useReactToPrint({
     contentRef: printRef,
+    documentTitle: pdfTitle,
     pageStyle: `
       @page { margin: 0.5in; size: letter portrait; }
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+      .print-root { padding: 0 !important; }
     `,
     onBeforePrint: () => new Promise<void>((resolve) => {
       const imgs = printRef.current?.querySelectorAll("img") ?? [];
@@ -364,26 +430,14 @@ function PaymentCalc() {
     }),
   });
 
+  /* Initialize per-mode rates from market rates (once on mount) */
   useEffect(() => {
     const r = getRates();
     setRates(r);
-    setRate(r.conventional);
+    setConvRate(r.conventional);
+    setFhaModeRate(r.fha);
+    setVaModeRate(r.va);
   }, []);
-
-  // When loan mode changes, reset rate and down payment defaults
-  useEffect(() => {
-    if (loanMode === "conventional") {
-      setRate(rates.conventional);
-      setDownPct(3);
-    } else if (loanMode === "fha") {
-      setRate(rates.fha);
-      setDownPct(3.5);
-    } else {
-      setRate(rates.va);
-      setDownPct(0);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loanMode]);
 
   // --- Core calculations ---
   const downPayment = loanMode === "va" ? 0 : price * (downPct / 100);
@@ -412,62 +466,113 @@ function PaymentCalc() {
     loanMode === "conventional" ? rates.conventional :
     loanMode === "fha"          ? rates.fha : rates.va;
 
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const [imgLoading, setImgLoading] = useState(false);
+
+  const downloadJPG = async () => {
+    const el = summaryRef.current;
+    if (!el) return;
+    setImgLoading(true);
+    // Temporarily show the print-only summary card so html2canvas can capture it
+    el.style.display = "block";
+    el.style.position = "fixed";
+    el.style.left = "-9999px";
+    try {
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
+      const link = document.createElement("a");
+      link.download = `${pdfTitle}.jpg`;
+      link.href = canvas.toDataURL("image/jpeg", 0.95);
+      link.click();
+    } finally {
+      el.style.display = "";
+      el.style.position = "";
+      el.style.left = "";
+      setImgLoading(false);
+    }
+  };
+
+  const paymentRows = ([
+    { label: "Purchase Price", value: fmt(price) },
+    loanMode !== "va"
+      ? { label: `Down Payment (${downPct}%)`, value: fmt(downPayment) }
+      : { label: "Down Payment", value: "$0 — VA No Down" },
+    { label: "Loan Amount", value: fmt(baseLoan) },
+    { label: "Interest Rate", value: `${rate.toFixed(2)}%` },
+    { label: "Loan Term", value: `${term} years` },
+    { label: "Monthly P&I", value: fmt(monthlyPI) },
+    { label: "Monthly Property Tax", value: fmt(monthlyTax) },
+    { label: "Monthly Insurance", value: fmt(monthlyIns) },
+    hoa > 0 ? { label: "Monthly HOA", value: fmt(hoa) } : null,
+    loanMode === "conventional" && downPct < 20 ? { label: `Monthly PMI (${pmiRate}%/yr)`, value: fmt(monthlyMI) } : null,
+    loanMode === "fha" ? { label: "Monthly MIP (0.55%/yr)", value: fmt(monthlyMI) } : null,
+  ] as ({ label: string; value: string } | null)[]).filter((r): r is { label: string; value: string } => r !== null);
+
   return (
     <div>
       <div ref={printRef} className="print-root">
 
-        {/* ── PRINT-ONLY HEADER ── (hidden on screen) */}
-        <div className="print-only mb-4">
-          <div className="flex justify-between items-center pb-3 mb-3 border-b-2 border-[#C8202A]">
+        {/* ── SUMMARY CARD (used for print AND jpg export) ── */}
+        <div ref={summaryRef} id="summary-card" className="print-only" style={{ maxWidth: 680, background: "#FFFFFF", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
+          {/* Header band — black logos on white for reliable printing */}
+          <div style={{ padding: "20px 28px", borderBottom: "3px solid #C8202A", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group" style={{ height: 44, width: "auto", display: "block" } as React.CSSProperties} />
+              <div>
+                <div style={{ color: "#111", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" as const }}>The Rio Group</div>
+                <div style={{ color: "#999", fontSize: 9, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Built Different</div>
+              </div>
+            </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group"
-              style={{height:52,width:"auto",display:"block",printColorAdjust:"exact",WebkitPrintColorAdjust:"exact"} as React.CSSProperties} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates"
-              style={{height:40,width:"auto",display:"block",printColorAdjust:"exact",WebkitPrintColorAdjust:"exact"} as React.CSSProperties} />
+            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 36, width: "auto", display: "block" } as React.CSSProperties} />
           </div>
-          <h1 className="text-xl font-bold mb-0.5 text-rio-black">Monthly Payment Summary</h1>
-          <p className="text-sm text-gray-500 mb-1">{todayStr}</p>
-          {clientName      && <p className="text-sm text-gray-700">Client: <strong>{clientName}</strong></p>}
-          {propertyAddress && <p className="text-sm text-gray-700">Property: <strong>{propertyAddress}</strong></p>}
-          <p className="text-sm text-gray-700 mt-1">
-            Loan Type: <strong>{loanMode === "conventional" ? "Conventional" : loanMode === "fha" ? "FHA" : "VA"}</strong>
-          </p>
-        </div>
 
-        {/* ── PRINT-ONLY breakdown detail table ── */}
-        <div className="print-only mb-6 border border-gray-200 rounded-lg overflow-hidden">
-          {([
-            { label: "Purchase Price",               value: fmt(price)                                              },
-            loanMode !== "va"
-              ? { label: `Down Payment (${downPct}%)`, value: `${fmt(downPayment)}`                                }
-              : { label: "Down Payment",               value: "$0 — VA No Down Payment Required"                   },
-            { label: "Loan Amount",                  value: fmt(baseLoan)                                          },
-            { label: "Interest Rate",                value: `${rate.toFixed(2)}%`                                  },
-            { label: "Loan Term",                    value: `${term} years`                                        },
-            { label: "Monthly Principal & Interest", value: fmt(monthlyPI)                                         },
-            { label: "Monthly Property Tax",         value: fmt(monthlyTax)                                        },
-            { label: "Monthly Insurance",            value: fmt(monthlyIns)                                        },
-            hoa > 0
-              ? { label: "Monthly HOA",              value: fmt(hoa) }
-              : null,
-            loanMode === "conventional" && downPct < 20
-              ? { label: `Monthly PMI (${pmiRate}%/yr)`, value: fmt(monthlyMI) }
-              : null,
-            loanMode === "fha"
-              ? { label: "Monthly MIP (0.55%/yr)", value: fmt(monthlyMI) }
-              : null,
-          ] as ({ label: string; value: string } | null)[])
-            .filter((r): r is { label: string; value: string } => r !== null)
-            .map((row, i) => (
-              <div key={i} className={`flex justify-between px-4 py-1.5 border-b border-gray-100 ${i % 2 === 0 ? "bg-gray-50" : "bg-white"}`}>
-                <span className="text-sm text-gray-600">{row.label}</span>
-                <span className="text-sm font-semibold text-rio-black">{row.value}</span>
+          {/* Title bar */}
+          <div style={{ borderBottom: "2px solid #C8202A", padding: "10px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: "#C8202A", fontSize: 14, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const }}>Monthly Payment Summary</span>
+            <span style={{ color: "#999", fontSize: 11 }}>{todayStr}</span>
+          </div>
+
+          {/* Client info row */}
+          {(clientName || propertyAddress) && (
+            <div style={{ padding: "14px 28px", borderBottom: "1px solid #E8E8E8", background: "#FAFAF9" }}>
+              <div style={{ fontSize: 9, color: "#C8202A", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", marginBottom: 4 }}>Prepared For</div>
+              {clientName && <div style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>{clientName}</div>}
+              {propertyAddress && <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 2 }}>{propertyAddress}</div>}
+            </div>
+          )}
+
+          {/* Loan type badge */}
+          <div style={{ padding: "14px 28px 6px", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ background: "#C8202A", color: "#fff", fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 4, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>
+              {loanMode === "conventional" ? "Conventional" : loanMode === "fha" ? "FHA" : "VA"}
+            </span>
+            <span style={{ fontSize: 11, color: "#9B9B9B" }}>{rate.toFixed(2)}% · {term} Year Fixed</span>
+          </div>
+
+          {/* Breakdown table */}
+          <div style={{ margin: "12px 20px 20px", border: "1px solid #E8E8E8", borderRadius: 12, overflow: "hidden" }}>
+            {paymentRows.map((row, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "11px 18px", background: i % 2 === 0 ? "#FFFFFF" : "#FAFAF9", borderBottom: "1px solid #F0F0F0" }}>
+                <span style={{ fontSize: 13, color: "#6B6B6B" }}>{row.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#111111" }}>{row.value}</span>
               </div>
             ))}
-          <div className="flex justify-between items-center px-4 py-4 bg-red-50 border-t-2 border-[#C8202A]">
-            <span className="font-bold text-base text-rio-black">Total Monthly Payment</span>
-            <span className="text-3xl font-extrabold text-rio-red">{fmt(total)}</span>
+          </div>
+
+          {/* Total payment highlight */}
+          <div style={{ margin: "0 20px 20px", border: "2px solid #C8202A", borderRadius: 12, padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ color: "#C8202A", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em" }}>Total Monthly Payment</div>
+              <div style={{ color: "#666", fontSize: 11, marginTop: 2 }}>Principal, Interest, Taxes, Insurance{hoa > 0 ? " & HOA" : ""}</div>
+            </div>
+            <div style={{ color: "#C8202A", fontSize: 28, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{fmt(total)}</div>
+          </div>
+
+          {/* Footer */}
+          <div style={{ borderTop: "2px solid #C8202A", padding: "12px 28px 16px", textAlign: "center" as const }}>
+            <div style={{ fontSize: 10, color: "#6B6B6B", fontWeight: 500 }}>The Rio Group — Powered by AZ &amp; Associates</div>
+            <div style={{ fontSize: 8, color: "#ABABAB", marginTop: 3 }}>All figures are estimates for informational purposes only. Subject to lender approval and qualification.</div>
           </div>
         </div>
 
@@ -530,17 +635,11 @@ function PaymentCalc() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 no-print">
-        <MoneyInput label="Purchase Price" value={price} onChange={setPrice} placeholder="350000" />
+        <MoneyInput label="Purchase Price" value={price} onChange={setPrice} placeholder="450000" />
 
         {/* Down payment — hidden for VA */}
         {loanMode !== "va" ? (
-          <NumberInput
-            label="Down Payment %"
-            value={downPct}
-            onChange={setDownPct}
-            suffix="%"
-            placeholder={loanMode === "fha" ? "3.5" : "3"}
-          />
+          <DownPaymentInput price={price} pct={downPct} onChange={setDownPct} label="Down Payment" />
         ) : (
           <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800 flex items-center">
             <span className="font-semibold">VA Loan — No Down Payment Required</span>
@@ -599,6 +698,13 @@ function PaymentCalc() {
           </div>
         )}
 
+        {/* FHA loan limit warning */}
+        {loanMode === "fha" && baseLoan > 578000 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm md:col-span-2">
+            <div className="font-semibold text-amber-800">⚠️ FHA loan limit for Maricopa County is $578,000. Maximum FHA purchase price at 3.5% down is approximately $598,964.</div>
+          </div>
+        )}
+
         {/* VA — disability toggle for funding fee */}
         {loanMode === "va" && (
           <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm md:col-span-1">
@@ -637,53 +743,53 @@ function PaymentCalc() {
 
       {/* Results — screen only; print table above already shows all values */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 no-print">
-        <ResultCard label="Monthly P&I" value={fmt(monthlyPI)} />
-        <ResultCard
-          label="Monthly PITI"
-          value={fmt(piti)}
-          sub={
-            loanMode === "fha" ? `Incl. MIP ${fmt(monthlyMI)}/mo` :
-            loanMode === "conventional" && downPct < 20 ? `Incl. PMI ${fmt(monthlyMI)}/mo` :
-            undefined
-          }
-        />
-        <ResultCard label="Total w/ HOA" value={fmt(total)} />
-        <ResultCard
-          label={loanMode === "va" ? "Down Payment" : "Down Payment"}
-          value={loanMode === "va" ? "$0" : fmt(downPayment)}
-          sub={
-            fhaUpfrontMIP > 0 ? `+${fmt(fhaUpfrontMIP)} MIP in loan` :
-            vaFundingFee > 0   ? `+${fmt(vaFundingFee)} fee in loan` :
-            undefined
-          }
-        />
+        <ResultCard label="Monthly P&I" value={fmt(monthlyPI)} sub="Principal and Interest only — does not include taxes, insurance, or HOA" />
+        <ResultCard label="Monthly PITI" value={fmt(piti)} sub="Includes Principal, Interest, Taxes and Insurance" />
+        <ResultCard label="Total w/ HOA" value={fmt(total)} sub="PITI plus monthly HOA" />
+        <ResultCard label="Down Payment" value={loanMode === "va" ? "$0" : fmt(downPayment)} sub="Required funds at closing" />
       </div>
 
       {/* Loan summary strip */}
       <div className="bg-rio-gray rounded-lg px-4 py-2.5 text-xs text-gray-600 border border-gray-200 no-print">
         <span className="font-semibold">Loan Summary: </span>
         Base loan {fmt(baseLoan)}
-        {fhaUpfrontMIP > 0 && <span> + upfront MIP {fmt(fhaUpfrontMIP)}</span>}
-        {vaFundingFee  > 0 && <span> + VA funding fee {fmt(vaFundingFee)}</span>}
         <span> = <strong>Total financed {fmt(totalLoan)}</strong></span>
-        {loanMode === "va" && <span className="ml-2 text-green-700">· No PMI</span>}
-        {loanMode === "fha" && <span className="ml-2 text-blue-700">· Annual MIP {fmt(monthlyMI * 12)}/yr</span>}
       </div>
 
-        {/* Print-only footer */}
-        <div className="print-only mt-3 pt-3 border-t border-gray-200 text-center text-xs text-gray-400">
-          The Rio Group — Powered by AZ &amp; Associates. All figures are estimates for informational purposes only. Subject to lender approval and qualification.
-        </div>
       </div>{/* end printRef */}
 
-      {/* Print button — outside printRef, won't appear on print */}
+      {/* Action buttons — outside printRef */}
       <div className="flex flex-wrap items-center justify-between gap-3 mt-6 pt-6 border-t border-gray-100 no-print">
-        <button
-          onClick={() => handlePrint()}
-          style={{ padding: "12px 28px", borderRadius: "10px", background: "#C8202A", color: "#FFFFFF", fontWeight: 600, fontSize: "0.9375rem", border: "none", cursor: "pointer" }}
-        >
-          Print / Save PDF
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => handlePrint()}
+            style={{ padding: "12px 28px", borderRadius: "10px", background: "#C8202A", color: "#FFFFFF", fontWeight: 600, fontSize: "0.9375rem", border: "none", cursor: "pointer" }}
+          >
+            Save PDF
+          </button>
+          <button
+            onClick={downloadJPG}
+            disabled={imgLoading}
+            style={{ padding: "12px 28px", borderRadius: "10px", background: "#111111", color: "#FFFFFF", fontWeight: 600, fontSize: "0.9375rem", border: "none", cursor: "pointer", opacity: imgLoading ? 0.6 : 1 }}
+          >
+            {imgLoading ? "Saving…" : "Save as Image"}
+          </button>
+          <button
+            onClick={() => {
+              setPrice(450000);
+              setConvRate(rates.conventional); setConvDown(3);
+              setFhaModeRate(rates.fha); setFhaModeDown(3.5);
+              setVaModeRate(rates.va); setVaModeDown(0);
+              setTerm(30); setTax(0.45); setTaxDollars(Math.round(450000 * 0.0045));
+              setInsurance(1350); setHoa(0); setPmiRate(0.55);
+              setVaDisabilityWaiver(false);
+              setClientName(""); setPropertyAddress("");
+            }}
+            style={{ padding: "12px 28px", borderRadius: "10px", background: "#FFFFFF", color: "#6B6B6B", fontWeight: 600, fontSize: "0.9375rem", border: "1.5px solid #E8E8E8", cursor: "pointer" }}
+          >
+            Reset
+          </button>
+        </div>
         <FloatingCalc />
       </div>
     </div>
@@ -698,23 +804,42 @@ function DTICalc() {
   const [cosignerDebts, setCosignerDebts] = useState(0);
   const [housing, setHousing] = useState(2000);
   const [hasCosigner, setHasCosigner] = useState(false);
+  const [creditScore, setCreditScore] = useState(700);
 
   const totalMonthlyIncome = (income + cosignerIncome) / 12;
   const totalDebts = debts + cosignerDebts;
   const housingDTI = totalMonthlyIncome > 0 ? (housing / totalMonthlyIncome) * 100 : 0;
   const totalDTI = totalMonthlyIncome > 0 ? ((housing + totalDebts) / totalMonthlyIncome) * 100 : 0;
-  const max45 = totalMonthlyIncome * 0.45 - totalDebts;
-  const max57 = totalMonthlyIncome * 0.57 - totalDebts;
 
-  const dtiColor = (v: number) =>
-    v > 50 ? "text-red-600" : v > 43 ? "text-amber-600" : "text-green-600";
+  /* FHA limits: front-end 45.9%, back-end 56.9% */
+  const fhaFrontMax = 45.9;
+  const fhaBackMax = 56.9;
+  const maxFHAFront = totalMonthlyIncome * (fhaFrontMax / 100);
+  const maxFHABack = totalMonthlyIncome * (fhaBackMax / 100) - totalDebts;
+  const maxFHA = Math.min(maxFHAFront, maxFHABack);
+
+  /* Conventional limits: 49.9% with 700+ credit, 45% otherwise */
+  const convMaxDTI = creditScore >= 700 ? 49.9 : 45;
+  const maxConv = totalMonthlyIncome * (convMaxDTI / 100) - totalDebts;
+
+  /* Status checks */
+  const fhaFrontOK = housingDTI <= fhaFrontMax;
+  const fhaBackOK = totalDTI <= fhaBackMax;
+  const fhaOK = fhaFrontOK && fhaBackOK;
+  const convOK = totalDTI <= convMaxDTI;
+
+  const dtiColor = (v: number, limit: number) =>
+    v > limit ? "text-red-600" : v > limit - 5 ? "text-amber-600" : "text-green-600";
 
   return (
     <div>
       <h3 className="text-lg font-bold mb-5" style={{ color: "#111111", letterSpacing: "-0.01em" }}>DTI Calculator</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <MoneyInput label="Annual Gross Income" value={income} onChange={setIncome} />
         <MoneyInput label="Monthly Debts" value={debts} onChange={setDebts} />
+        <NumberInput label="Credit Score" value={creditScore} onChange={setCreditScore} placeholder="700" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <MoneyInput label="Proposed Monthly Housing Payment" value={housing} onChange={setHousing} />
         <div className="flex items-end">
           <button
@@ -740,17 +865,66 @@ function DTICalc() {
           <MoneyInput label="Co-signer Debts" value={cosignerDebts} onChange={setCosignerDebts} />
         </div>
       )}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+      {/* DTI Ratio Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div className="bg-rio-gray rounded-lg p-4 border">
           <div className="text-xs text-gray-500">Housing DTI</div>
-          <div className={`text-xl font-bold ${dtiColor(housingDTI)}`}>{housingDTI.toFixed(1)}%</div>
+          <div className={`text-xl font-bold ${dtiColor(housingDTI, fhaFrontMax)}`}>{housingDTI.toFixed(1)}%</div>
+          <div className="text-xs text-gray-400 mt-1">FHA front-end limit: {fhaFrontMax}%</div>
         </div>
         <div className="bg-rio-gray rounded-lg p-4 border">
           <div className="text-xs text-gray-500">Total DTI</div>
-          <div className={`text-xl font-bold ${dtiColor(totalDTI)}`}>{totalDTI.toFixed(1)}%</div>
+          <div className={`text-xl font-bold ${dtiColor(totalDTI, convMaxDTI)}`}>{totalDTI.toFixed(1)}%</div>
+          <div className="text-xs text-gray-400 mt-1">Conv limit: {convMaxDTI}%</div>
         </div>
-        <ResultCard label="Max Payment (45%)" value={fmt(Math.max(max45, 0))} sub="Conv / Prog 1 & 2" />
-        <ResultCard label="Max Payment (57%)" value={fmt(Math.max(max57, 0))} sub="FHA Programs" />
+        <ResultCard label={`Max Payment — Conventional (${convMaxDTI}%)`} value={fmt(Math.max(maxConv, 0))} sub={creditScore >= 700 ? "700+ credit — expanded to 49.9% DTI" : "Under 700 credit — capped at 45% DTI"} />
+        <ResultCard label="Max Payment — FHA (56.9%)" value={fmt(Math.min(Math.max(maxFHA, 0), 4200))} sub={Math.max(maxFHA, 0) > 4200 ? "Capped at FHA Maricopa County loan limit" : "Back-end ratio includes all debts plus housing"} />
+      </div>
+
+      {/* Qualification Status */}
+      {housing > 0 && totalMonthlyIncome > 0 && (
+        <div className="space-y-2">
+          {/* Conventional status */}
+          {convOK ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800">
+              <strong>Conventional:</strong> Total DTI of {totalDTI.toFixed(1)}% is within the {convMaxDTI}% limit{creditScore >= 700 ? " (expanded for 700+ credit)" : ""}. This payment works.
+            </div>
+          ) : (
+            <div className="bg-red-50 border border-red-300 rounded-lg px-4 py-3 text-sm text-red-800">
+              <strong>Conventional: Exceeds limit.</strong> Total DTI of {totalDTI.toFixed(1)}% exceeds the {convMaxDTI}% maximum{creditScore < 700 ? ". Credit score under 700 caps conventional at 45%" : ""}. Max housing payment at this income: {fmt(Math.max(maxConv, 0))}/mo.
+              {creditScore < 700 && totalDTI <= 49.9 && <span className="block mt-1 text-amber-700 font-medium">If credit improves to 700+, conventional expands to 49.9% — this payment would qualify.</span>}
+            </div>
+          )}
+
+          {/* FHA status */}
+          {fhaOK ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800">
+              <strong>FHA:</strong> Housing DTI {housingDTI.toFixed(1)}% (max {fhaFrontMax}%) and total DTI {totalDTI.toFixed(1)}% (max {fhaBackMax}%) both within limits. This payment works for FHA.
+            </div>
+          ) : (
+            <div className="bg-red-50 border border-red-300 rounded-lg px-4 py-3 text-sm text-red-800">
+              <strong>FHA: Exceeds limit.</strong>
+              {!fhaFrontOK && <span> Housing DTI of {housingDTI.toFixed(1)}% exceeds the {fhaFrontMax}% front-end maximum.</span>}
+              {!fhaBackOK && <span> Total DTI of {totalDTI.toFixed(1)}% exceeds the {fhaBackMax}% back-end maximum.</span>}
+              <span> Max FHA housing payment at this income: {fmt(Math.max(maxFHA, 0))}/mo.</span>
+            </div>
+          )}
+
+          {/* Suggestion if both fail */}
+          {!convOK && !fhaOK && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+              <strong>Suggestion:</strong> This payment does not qualify under conventional or FHA at current income and debts. Options: lower the purchase price, increase income (add a co-signer), or reduce monthly debts by {fmt(Math.ceil((housing + totalDebts) - totalMonthlyIncome * (fhaBackMax / 100)))} to fit FHA limits.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Reference Notes */}
+      <div className="mt-4 pt-4 border-t border-gray-100">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          <strong>DTI Limits:</strong> FHA allows {fhaFrontMax}% front-end (housing only) and {fhaBackMax}% back-end (housing + debts). Conventional allows {creditScore >= 700 ? "49.9%" : "45%"} total DTI{creditScore >= 700 ? " with 700+ credit score" : " (expands to 49.9% with 700+ credit)"}. VA has no front-end limit; back-end guideline is 41% but can be exceeded with residual income.
+        </p>
       </div>
     </div>
   );
@@ -799,7 +973,7 @@ function MaxPriceCalc() {
         <NumberInput label="Target DTI %" value={targetDTI} onChange={setTargetDTI} suffix="%" />
         <NumberInput label="Interest Rate %" value={rate} onChange={setRate} suffix="%" step="0.125" />
         <TaxInput
-          price={maxPrice || 350000}
+          price={maxPrice || 450000}
           taxDollars={taxDollars}
           onTaxDollarsChange={setTaxDollars}
           taxRate={tax}
@@ -857,29 +1031,60 @@ function NewBuildCalc() {
 
   useEffect(() => { setRates(getRates()); }, []);
 
-  const [nbPrice, setNbPrice] = useState(470000);
+  const [nbPrice, setNbPrice] = useState(450000);
   const [nbRate, setNbRate] = useState(3.75);
   const [nbHoa, setNbHoa] = useState(100);
   const [nbDownPct, setNbDownPct] = useState(3.5);
   const [nbTaxRate, setNbTaxRate] = useState(0.8); // First-year new build tax rate
-  const [nbTaxDollars, setNbTaxDollars] = useState(Math.round(470000 * 0.008));
+  const [nbTaxDollars, setNbTaxDollars] = useState(Math.round(450000 * 0.008));
 
-  const [rsPrice, setRsPrice] = useState(380000);
+  const [rsPrice, setRsPrice] = useState(450000);
   const [rsRate, setRsRate] = useState(0);
   const [rsHoa, setRsHoa] = useState(0);
   const [rsDownPct, setRsDownPct] = useState(3.5);
   const [rsTaxRate, setRsTaxRate] = useState(0.45);
-  const [rsTaxDollars, setRsTaxDollars] = useState(Math.round(380000 * 0.0045));
+  const [rsTaxDollars, setRsTaxDollars] = useState(Math.round(450000 * 0.0045));
 
   useEffect(() => { setRsRate(rates.fha); }, [rates]);
 
+  const [clientName, setClientName] = useState("");
+  const [propertyAddress, setPropertyAddress] = useState("");
+
   const todayStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   const printRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const [imgLoading, setImgLoading] = useState(false);
+
+  const downloadJPG = async () => {
+    const el = summaryRef.current;
+    if (!el) return;
+    setImgLoading(true);
+    el.style.display = "block";
+    el.style.position = "fixed";
+    el.style.left = "-9999px";
+    try {
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
+      const link = document.createElement("a");
+      link.download = `Rio-Group-NB-vs-Resale${clientName ? `-${safeName(clientName)}` : ""}.jpg`;
+      link.href = canvas.toDataURL("image/jpeg", 0.95);
+      link.click();
+    } finally {
+      el.style.display = "";
+      el.style.position = "";
+      el.style.left = "";
+      setImgLoading(false);
+    }
+  };
+
+  const nbPdfTitle = `Rio-Group-NB-vs-Resale${clientName ? `-${safeName(clientName)}` : ""}`;
   const handlePrint = useReactToPrint({
     contentRef: printRef,
+    documentTitle: nbPdfTitle,
     pageStyle: `
       @page { margin: 0.5in; size: letter portrait; }
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+      .print-root { padding: 0 !important; }
     `,
     onBeforePrint: () => new Promise<void>((resolve) => {
       const imgs = printRef.current?.querySelectorAll("img") ?? [];
@@ -940,77 +1145,134 @@ function NewBuildCalc() {
     <div>
       <div ref={printRef} className="print-root">
 
-        {/* ── PRINT-ONLY HEADER ── */}
-        <div className="print-only mb-4">
-          <div className="flex justify-between items-center pb-3 mb-3 border-b-2 border-[#C8202A]">
+        {/* ── SUMMARY CARD (used for print AND jpg export) ── */}
+        <div ref={summaryRef} id="nb-vs-resale-summary" className="print-only" style={{ maxWidth: 680, background: "#FFFFFF", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
+          {/* Header band — black logos on white so they always print */}
+          <div style={{ padding: "20px 28px", borderBottom: "3px solid #C8202A", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group" style={{ height: 44, width: "auto", display: "block" } as React.CSSProperties} />
+              <div>
+                <div style={{ color: "#111", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" as const }}>The Rio Group</div>
+                <div style={{ color: "#999", fontSize: 9, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Built Different</div>
+              </div>
+            </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group"
-              style={{height:52,width:"auto",display:"block",printColorAdjust:"exact",WebkitPrintColorAdjust:"exact"} as React.CSSProperties} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates"
-              style={{height:40,width:"auto",display:"block",printColorAdjust:"exact",WebkitPrintColorAdjust:"exact"} as React.CSSProperties} />
+            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 36, width: "auto", display: "block" } as React.CSSProperties} />
           </div>
-          <h1 className="text-xl font-bold mb-0.5 text-rio-black">New Build vs. Resale Comparison</h1>
-          <p className="text-xs text-gray-500">{todayStr}</p>
-        </div>
 
-        {/* ── PRINT-ONLY side-by-side summary ── */}
-        <div className="print-only mb-6">
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
-              <div className="font-bold text-blue-800 mb-3">New Build</div>
-              {[
-                { label: "Purchase Price",  value: fmt(nbPrice) },
-                { label: `Down (${nbDownPct}%)`, value: fmt(nb.down) },
-                { label: "Loan Amount",     value: fmt(nb.loan) },
-                { label: "Rate (buydown)",  value: `${nbRate}%` },
-                { label: "Tax Rate",        value: `${nbTaxRate}%` },
-                { label: "Monthly HOA",     value: fmt(nbHoa) },
-                { label: "P&I",             value: fmt(nb.pi) },
-                { label: "PITI",            value: fmt(nb.piti) },
-              ].map((r, i) => (
-                <div key={i} className="flex justify-between text-sm py-1 border-b border-blue-100">
-                  <span className="text-blue-700">{r.label}</span>
-                  <span className="font-semibold text-blue-900">{r.value}</span>
-                </div>
-              ))}
-              <div className="flex justify-between text-base font-bold mt-2 pt-2 text-blue-900">
-                <span>Total Monthly</span><span>{fmt(nb.total)}</span>
-              </div>
+          {/* Title bar */}
+          <div style={{ borderBottom: "2px solid #C8202A", padding: "10px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: "#C8202A", fontSize: 14, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const }}>New Build vs. Resale Comparison</span>
+            <span style={{ color: "#999", fontSize: 11 }}>{todayStr}</span>
+          </div>
+
+          {/* Client info row */}
+          {(clientName || propertyAddress) && (
+            <div style={{ padding: "14px 28px", borderBottom: "1px solid #E8E8E8", background: "#FAFAF9" }}>
+              <div style={{ fontSize: 9, color: "#C8202A", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", marginBottom: 4 }}>Prepared For</div>
+              {clientName && <div style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>{clientName}</div>}
+              {propertyAddress && <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 2 }}>{propertyAddress}</div>}
             </div>
-            <div className="border border-green-200 rounded-lg p-4 bg-green-50">
-              <div className="font-bold text-green-800 mb-3">Resale</div>
-              {[
-                { label: "Purchase Price",  value: fmt(rsPrice) },
-                { label: `Down (${rsDownPct}%)`, value: fmt(rs.down) },
-                { label: "Loan Amount",     value: fmt(rs.loan) },
-                { label: "Rate (market)",   value: `${rsRate.toFixed(2)}%` },
-                { label: "Tax Rate",        value: `${rsTaxRate}%` },
-                { label: "Monthly HOA",     value: rsHoa > 0 ? fmt(rsHoa) : "None" },
-                { label: "P&I",             value: fmt(rs.pi) },
-                { label: "PITI",            value: fmt(rs.piti) },
-              ].map((r, i) => (
-                <div key={i} className="flex justify-between text-sm py-1 border-b border-green-100">
-                  <span className="text-green-700">{r.label}</span>
-                  <span className="font-semibold text-green-900">{r.value}</span>
+          )}
+
+          {/* Side-by-side comparison */}
+          <div style={{ padding: "20px 28px 0" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              {/* New Build column */}
+              <div style={{ border: "1px solid #BFDBFE", borderRadius: 12, padding: 16, background: "#EFF6FF" }}>
+                <div style={{ fontWeight: 700, color: "#1E40AF", marginBottom: 12, fontSize: 13, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>New Build</div>
+                {[
+                  { label: "Purchase Price",  value: fmt(nbPrice) },
+                  { label: `Down (${nbDownPct}%)`, value: fmt(nb.down) },
+                  { label: "Loan Amount",     value: fmt(nb.loan) },
+                  { label: "Rate (buydown)",  value: `${nbRate}%` },
+                  { label: "Tax Rate",        value: `${nbTaxRate}%` },
+                  { label: "Monthly HOA",     value: fmt(nbHoa) },
+                  { label: "P&I",             value: fmt(nb.pi) },
+                  { label: "PITI",            value: fmt(nb.piti) },
+                ].map((r, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0", borderBottom: "1px solid #DBEAFE" }}>
+                    <span style={{ color: "#1D4ED8" }}>{r.label}</span>
+                    <span style={{ fontWeight: 600, color: "#1E3A8A" }}>{r.value}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700, marginTop: 8, paddingTop: 8, color: "#1E3A8A" }}>
+                  <span>Total Monthly</span><span>{fmt(nb.total)}</span>
                 </div>
-              ))}
-              <div className="flex justify-between text-base font-bold mt-2 pt-2 text-green-900">
-                <span>Total Monthly</span><span>{fmt(rs.total)}</span>
+              </div>
+              {/* Resale column */}
+              <div style={{ border: "1px solid #BBF7D0", borderRadius: 12, padding: 16, background: "#F0FDF4" }}>
+                <div style={{ fontWeight: 700, color: "#166534", marginBottom: 12, fontSize: 13, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Resale</div>
+                {[
+                  { label: "Purchase Price",  value: fmt(rsPrice) },
+                  { label: `Down (${rsDownPct}%)`, value: fmt(rs.down) },
+                  { label: "Loan Amount",     value: fmt(rs.loan) },
+                  { label: "Rate (market)",   value: `${rsRate.toFixed(2)}%` },
+                  { label: "Tax Rate",        value: `${rsTaxRate}%` },
+                  { label: "Monthly HOA",     value: rsHoa > 0 ? fmt(rsHoa) : "None" },
+                  { label: "P&I",             value: fmt(rs.pi) },
+                  { label: "PITI",            value: fmt(rs.piti) },
+                ].map((r, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0", borderBottom: "1px solid #DCFCE7" }}>
+                    <span style={{ color: "#15803D" }}>{r.label}</span>
+                    <span style={{ fontWeight: 600, color: "#14532D" }}>{r.value}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700, marginTop: 8, paddingTop: 8, color: "#14532D" }}>
+                  <span>Total Monthly</span><span>{fmt(rs.total)}</span>
+                </div>
               </div>
             </div>
           </div>
-          <div className="bg-rio-red/5 border-2 border-rio-red rounded-xl px-5 py-4 text-sm text-gray-700">
-            <strong className="text-rio-red">Monthly Difference: </strong>
-            {nb.total > rs.total
-              ? `Resale saves ${fmt(nb.total - rs.total)}/mo (${fmt((nb.total - rs.total) * 12)}/yr)`
-              : `New Build saves ${fmt(rs.total - nb.total)}/mo (${fmt((rs.total - nb.total) * 12)}/yr)`}
-            <br />
-            <strong>Payment-equivalent:</strong> {fmt(nbPrice)} new build at {nbRate}% = same payment as a {fmt(equivalentResalePrice)} resale at {rsRate.toFixed(2)}%
+
+          {/* Difference strip */}
+          <div style={{ margin: "16px 28px", border: "2px solid #C8202A", borderRadius: 12, padding: "14px 20px" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: "#C8202A" }}>
+              Monthly Difference: {nb.total > rs.total
+                ? `Resale saves ${fmt(nb.total - rs.total)}/mo (${fmt((nb.total - rs.total) * 12)}/yr)`
+                : `New Build saves ${fmt(rs.total - nb.total)}/mo (${fmt((rs.total - nb.total) * 12)}/yr)`}
+            </div>
+            <div style={{ fontSize: 11, color: "#666" }}>
+              Payment-equivalent: {fmt(nbPrice)} new build at {nbRate}% = same payment as a {fmt(equivalentResalePrice)} resale at {rsRate.toFixed(2)}%
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div style={{ padding: "12px 28px 16px", borderTop: "1px solid #E8E8E8", textAlign: "center" as const, fontSize: 9, color: "#999" }}>
+            The Rio Group — Powered by AZ &amp; Associates. All figures are estimates for informational purposes only.
           </div>
         </div>
 
         <h3 className="text-lg font-bold mb-5 no-print" style={{ color: "#111111", letterSpacing: "-0.01em" }}>New Build vs. Resale Comparison</h3>
+
+        {/* Client info for print */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 pb-5 border-b border-gray-100 no-print">
+          <div>
+            <label style={labelStyle}>
+              Client Name <span className="text-xs text-gray-400 font-normal">(optional — for print)</span>
+            </label>
+            <input
+              type="text"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              placeholder="e.g. John & Jane Smith"
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>
+              Property Address <span className="text-xs text-gray-400 font-normal">(optional — for print)</span>
+            </label>
+            <input
+              type="text"
+              value={propertyAddress}
+              onChange={(e) => setPropertyAddress(e.target.value)}
+              placeholder="e.g. 1234 W Main St, Chandler AZ"
+              style={inputStyle}
+            />
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 no-print">
           {/* New Build inputs */}
@@ -1020,7 +1282,7 @@ function NewBuildCalc() {
             <MoneyInput label="Purchase Price" value={nbPrice} onChange={setNbPrice} />
             {/* Down payment */}
             <div>
-              <NumberInput label="Down Payment %" value={nbDownPct} onChange={setNbDownPct} suffix="%" step="0.5" placeholder="3.5" />
+              <DownPaymentInput price={nbPrice} pct={nbDownPct} onChange={setNbDownPct} label="Down Payment" />
               <div className="mt-1 text-xs text-blue-600 font-medium pl-1">
                 = {fmt(nb.down)} down · Loan {fmt(nb.loan)}
               </div>
@@ -1050,7 +1312,7 @@ function NewBuildCalc() {
             <MoneyInput label="Purchase Price" value={rsPrice} onChange={setRsPrice} />
             {/* Down payment */}
             <div>
-              <NumberInput label="Down Payment %" value={rsDownPct} onChange={setRsDownPct} suffix="%" step="0.5" placeholder="3.5" />
+              <DownPaymentInput price={rsPrice} pct={rsDownPct} onChange={setRsDownPct} label="Down Payment" />
               <div className="mt-1 text-xs text-green-700 font-medium pl-1">
                 = {fmt(rs.down)} down · Loan {fmt(rs.loan)}
               </div>
@@ -1070,7 +1332,7 @@ function NewBuildCalc() {
       </div>
 
       {/* Highlighted total monthly payment comparison */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-2 gap-4 mb-4 no-print">
         <div className="bg-blue-50 border-2 border-blue-400 rounded-xl p-4 text-center">
           <div className="text-xs text-blue-600 font-semibold uppercase tracking-wide">New Build Monthly</div>
           <div className="text-3xl font-bold text-blue-900 mt-1">{fmt(nb.total)}</div>
@@ -1084,7 +1346,7 @@ function NewBuildCalc() {
       </div>
 
       {/* Monthly difference */}
-      <div className={`rounded-lg px-4 py-3 text-center text-sm font-semibold mb-4 ${
+      <div className={`rounded-lg px-4 py-3 text-center text-sm font-semibold mb-4 no-print ${
         nb.total > rs.total
           ? "bg-green-50 border border-green-300 text-green-800"
           : "bg-blue-50 border border-blue-300 text-blue-800"
@@ -1094,20 +1356,20 @@ function NewBuildCalc() {
           : `New Build saves ${fmt(rs.total - nb.total)}/mo (${fmt((rs.total - nb.total) * 12)}/yr)`}
       </div>
 
-      {/* PITI breakdown */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="space-y-2">
-          <ResultCard label="New Build P&I" value={fmt(nb.pi)} />
-          <ResultCard label="New Build PITI" value={fmt(nb.piti)} />
-        </div>
-        <div className="space-y-2">
-          <ResultCard label="Resale P&I" value={fmt(rs.pi)} />
-          <ResultCard label="Resale PITI" value={fmt(rs.piti)} />
-        </div>
+      {/* Side-by-side comparison cards */}
+      <div className="grid grid-cols-2 gap-3 mb-4 no-print">
+        <ResultCard label="NEW BUILD P&I" value={fmt(nb.pi)} sub="Principal and Interest only — does not include taxes, insurance, or HOA" />
+        <ResultCard label="RESALE P&I" value={fmt(rs.pi)} sub="Principal and Interest only — does not include taxes, insurance, or HOA" />
+        <ResultCard label="NEW BUILD PITI" value={fmt(nb.piti)} sub="Includes Principal, Interest, Taxes and Insurance" />
+        <ResultCard label="RESALE PITI" value={fmt(rs.piti)} sub="Includes Principal, Interest, Taxes and Insurance" />
+        <ResultCard label="NEW BUILD TOTAL w/ HOA" value={fmt(nb.total)} />
+        <ResultCard label="RESALE TOTAL w/ HOA" value={fmt(rs.total)} />
+        <ResultCard label="NEW BUILD DOWN PAYMENT" value={fmt(nb.down)} />
+        <ResultCard label="RESALE DOWN PAYMENT" value={fmt(rs.down)} />
       </div>
 
       {/* Key insight: max new build price to match resale payment */}
-      <div className="bg-rio-red/5 border-2 border-rio-red rounded-xl px-5 py-4 mb-4">
+      <div className="bg-rio-red/5 border-2 border-rio-red rounded-xl px-5 py-4 mb-4 no-print">
         <h4 className="font-bold text-rio-red text-sm mb-2">New Build Price Suggestion</h4>
         <p className="text-sm text-gray-700">
           To match the resale payment of <strong>{fmt(rs.total)}/mo</strong>, the client could purchase a new build up to{" "}
@@ -1124,12 +1386,12 @@ function NewBuildCalc() {
         ) : null}
       </div>
 
-      <div className="bg-rio-gray border border-gray-200 rounded-lg px-4 py-3 text-sm mb-4">
+      <div className="bg-rio-gray border border-gray-200 rounded-lg px-4 py-3 text-sm mb-4 no-print">
         <strong>Payment-equivalent price:</strong> A {fmt(nbPrice)} new build at {nbRate}% = same payment as a{" "}
         <strong>{fmt(equivalentResalePrice)}</strong> resale at {rsRate.toFixed(2)}%
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
             <h4 className="font-bold text-blue-800 mb-1">New Build Notes</h4>
             <ul className="text-blue-700 space-y-1">
@@ -1153,11 +1415,6 @@ function NewBuildCalc() {
             </ul>
           </div>
         </div>
-
-        {/* Print-only footer */}
-        <div className="print-only mt-3 pt-3 border-t border-gray-200 text-center text-xs text-gray-400">
-          The Rio Group — Powered by AZ &amp; Associates. All figures are estimates for informational purposes only. Subject to lender approval and qualification.
-        </div>
       </div>{/* end printRef */}
 
       <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-gray-100 no-print">
@@ -1165,7 +1422,367 @@ function NewBuildCalc() {
           onClick={() => handlePrint()}
           style={{ padding: "12px 28px", borderRadius: "10px", background: "#C8202A", color: "#FFFFFF", fontWeight: 600, fontSize: "0.9375rem", border: "none", cursor: "pointer" }}
         >
-          Print / Save PDF
+          Save PDF
+        </button>
+        <button
+          onClick={downloadJPG}
+          disabled={imgLoading}
+          style={{ padding: "12px 28px", borderRadius: "10px", background: "#111111", color: "#FFFFFF", fontWeight: 600, fontSize: "0.9375rem", border: "none", cursor: "pointer", opacity: imgLoading ? 0.6 : 1 }}
+        >
+          {imgLoading ? "Saving…" : "Save as Image"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Calculator: Business Owner — Full Doc vs Bank Statement ── */
+function BusinessOwnerCalc() {
+  const [rates, setRates] = useState<Rates>(defaultRates);
+  useEffect(() => { setRates(getRates()); }, []);
+
+  const convRate = rates.conventional || 6.25;
+  const fhaRate = rates.fha || 5.75;
+  const bsRate = convRate + 1.5;
+
+  /* Full Doc (FHA) state */
+  const [fdPrice, setFdPrice] = useState(450000);
+  const [fdDownPct, setFdDownPct] = useState(3.5);
+  const [fdRate, setFdRate] = useState(0);
+  const [fdTaxRate, setFdTaxRate] = useState(0.45);
+  const [fdTaxDollars, setFdTaxDollars] = useState(Math.round(450000 * 0.0045));
+  const [fdHoa, setFdHoa] = useState(0);
+
+  /* Bank Statement state */
+  const [bsPrice, setBsPrice] = useState(450000);
+  const [bsDownPct, setBsDownPct] = useState(10);
+  const [bsRateAdj, setBsRateAdj] = useState(0);
+  const [bsTaxRate, setBsTaxRate] = useState(0.45);
+  const [bsTaxDollars, setBsTaxDollars] = useState(Math.round(450000 * 0.0045));
+  const [bsHoa, setBsHoa] = useState(0);
+
+  useEffect(() => { setFdRate(fhaRate); }, [fhaRate]);
+  useEffect(() => { setBsRateAdj(bsRate); }, [bsRate]);
+
+  const [clientName, setClientName] = useState("");
+  const [propertyAddress, setPropertyAddress] = useState("");
+
+  const todayStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const printRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const [imgLoading, setImgLoading] = useState(false);
+
+  const downloadJPG = async () => {
+    const el = summaryRef.current;
+    if (!el) return;
+    setImgLoading(true);
+    el.style.display = "block";
+    el.style.position = "fixed";
+    el.style.left = "-9999px";
+    try {
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
+      const link = document.createElement("a");
+      link.download = `Rio-Group-FullDoc-vs-BankStmt${clientName ? `-${safeName(clientName)}` : ""}.jpg`;
+      link.href = canvas.toDataURL("image/jpeg", 0.95);
+      link.click();
+    } finally {
+      el.style.display = ""; el.style.position = ""; el.style.left = "";
+      setImgLoading(false);
+    }
+  };
+
+  const boPdfTitle = `Rio-Group-FullDoc-vs-BankStmt${clientName ? `-${safeName(clientName)}` : ""}`;
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: boPdfTitle,
+    pageStyle: `
+      @page { margin: 0.5in; size: letter portrait; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+      .print-only { display: block !important; }
+      .print-root { padding: 0 !important; }
+    `,
+    onBeforePrint: () => new Promise<void>((resolve) => {
+      const imgs = printRef.current?.querySelectorAll("img") ?? [];
+      if (!imgs.length) { resolve(); return; }
+      let pending = imgs.length;
+      imgs.forEach((img) => {
+        if (img.complete && img.naturalHeight !== 0) { if (--pending === 0) resolve(); }
+        else { img.onload = img.onerror = () => { if (--pending === 0) resolve(); }; const s = img.src; img.src = ""; img.src = s; }
+      });
+    }),
+  });
+
+  const insurance = 1350;
+  const fhaMipUpfront = 0.0175;
+  const fhaMipAnnual = 0.0055;
+
+  /* Full Doc (FHA) calc */
+  const fdCalc = (() => {
+    const down = fdPrice * (fdDownPct / 100);
+    const baseLoan = fdPrice - down;
+    const loanWithMip = fdDownPct < 20 ? baseLoan * (1 + fhaMipUpfront) : baseLoan;
+    const pi = calculateMonthlyPayment(loanWithMip, fdRate, 30);
+    const tax = (fdPrice * (fdTaxRate / 100)) / 12;
+    const ins = insurance / 12;
+    const mip = fdDownPct < 20 ? (baseLoan * fhaMipAnnual) / 12 : 0;
+    const piti = pi + tax + ins + mip;
+    const total = piti + fdHoa;
+    return { pi, tax, ins, mip, piti, total, down, loan: baseLoan, loanWithMip };
+  })();
+
+  /* Bank Statement calc — no PMI/MIP */
+  const bsCalc = (() => {
+    const down = bsPrice * (bsDownPct / 100);
+    const loan = bsPrice - down;
+    const pi = calculateMonthlyPayment(loan, bsRateAdj, 30);
+    const tax = (bsPrice * (bsTaxRate / 100)) / 12;
+    const ins = insurance / 12;
+    const piti = pi + tax + ins;
+    const total = piti + bsHoa;
+    return { pi, tax, ins, piti, total, down, loan };
+  })();
+
+  const paymentDiff = bsCalc.total - fdCalc.total;
+  const downDiff = bsCalc.down - fdCalc.down;
+
+  return (
+    <div>
+      <div ref={printRef} className="print-root">
+
+        {/* ── PRINT SUMMARY CARD ── */}
+        <div ref={summaryRef} className="print-only" style={{ maxWidth: 680, background: "#FFFFFF", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
+          {/* Header */}
+          <div style={{ padding: "20px 28px", borderBottom: "3px solid #C8202A", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group" style={{ height: 44, width: "auto", display: "block" }} />
+              <div>
+                <div style={{ color: "#111", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" as const }}>The Rio Group</div>
+                <div style={{ color: "#999", fontSize: 9, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Built Different</div>
+              </div>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 36, width: "auto", display: "block" }} />
+          </div>
+
+          {/* Title */}
+          <div style={{ borderBottom: "2px solid #C8202A", padding: "10px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: "#C8202A", fontSize: 14, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const }}>Full Doc vs. Bank Statement Comparison</span>
+            <span style={{ color: "#999", fontSize: 11 }}>{todayStr}</span>
+          </div>
+
+          {/* Client info */}
+          {(clientName || propertyAddress) && (
+            <div style={{ padding: "14px 28px", borderBottom: "1px solid #E8E8E8", background: "#FAFAF9" }}>
+              <div style={{ fontSize: 9, color: "#C8202A", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", marginBottom: 4 }}>Prepared For</div>
+              {clientName && <div style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>{clientName}</div>}
+              {propertyAddress && <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 2 }}>{propertyAddress}</div>}
+            </div>
+          )}
+
+          {/* Side-by-side */}
+          <div style={{ padding: "20px 28px 0" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              {/* Full Doc column */}
+              <div style={{ border: "1px solid #BFDBFE", borderRadius: 12, padding: 16, background: "#EFF6FF" }}>
+                <div style={{ fontWeight: 700, color: "#1E40AF", marginBottom: 12, fontSize: 13, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Full Doc (FHA)</div>
+                {[
+                  { label: "Purchase Price", value: fmt(fdPrice) },
+                  { label: `Down (${fdDownPct}%)`, value: fmt(fdCalc.down) },
+                  { label: "Loan Amount", value: fmt(fdCalc.loan) },
+                  { label: "Rate (FHA)", value: `${fdRate.toFixed(2)}%` },
+                  { label: "Tax Rate", value: `${fdTaxRate}%` },
+                  { label: "MIP", value: fdCalc.mip > 0 ? `${fmt(fdCalc.mip)}/mo` : "None" },
+                  { label: "Monthly HOA", value: fdHoa > 0 ? fmt(fdHoa) : "None" },
+                  { label: "P&I", value: fmt(fdCalc.pi) },
+                  { label: "PITI + MIP", value: fmt(fdCalc.piti) },
+                ].map((r, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0", borderBottom: "1px solid #DBEAFE" }}>
+                    <span style={{ color: "#1D4ED8" }}>{r.label}</span>
+                    <span style={{ fontWeight: 600, color: "#1E3A8A" }}>{r.value}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700, marginTop: 8, paddingTop: 8, color: "#1E3A8A" }}>
+                  <span>Total Monthly</span><span>{fmt(fdCalc.total)}</span>
+                </div>
+              </div>
+
+              {/* Bank Statement column */}
+              <div style={{ border: "1px solid #FED7AA", borderRadius: 12, padding: 16, background: "#FFF7ED" }}>
+                <div style={{ fontWeight: 700, color: "#9A3412", marginBottom: 12, fontSize: 13, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Bank Statement</div>
+                {[
+                  { label: "Purchase Price", value: fmt(bsPrice) },
+                  { label: `Down (${bsDownPct}%)`, value: fmt(bsCalc.down) },
+                  { label: "Loan Amount", value: fmt(bsCalc.loan) },
+                  { label: "Rate (+1.5%)", value: `${bsRateAdj.toFixed(2)}%` },
+                  { label: "Tax Rate", value: `${bsTaxRate}%` },
+                  { label: "PMI/MIP", value: "None" },
+                  { label: "Monthly HOA", value: bsHoa > 0 ? fmt(bsHoa) : "None" },
+                  { label: "P&I", value: fmt(bsCalc.pi) },
+                  { label: "PITI", value: fmt(bsCalc.piti) },
+                ].map((r, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0", borderBottom: "1px solid #FED7AA" }}>
+                    <span style={{ color: "#C2410C" }}>{r.label}</span>
+                    <span style={{ fontWeight: 600, color: "#7C2D12" }}>{r.value}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700, marginTop: 8, paddingTop: 8, color: "#7C2D12" }}>
+                  <span>Total Monthly</span><span>{fmt(bsCalc.total)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Difference strip */}
+          <div style={{ margin: "16px 28px", border: "2px solid #C8202A", borderRadius: 12, padding: "14px 20px" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: "#C8202A" }}>
+              Monthly Difference: Bank statement is {fmt(Math.abs(paymentDiff))}/mo {paymentDiff > 0 ? "more" : "less"} than full doc
+            </div>
+            <div style={{ fontSize: 11, color: "#666" }}>
+              Down payment difference: Bank statement requires {fmt(Math.abs(downDiff))} {downDiff > 0 ? "more" : "less"} upfront. No PMI/MIP on bank statement saves {fmt(fdCalc.mip)}/mo.
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div style={{ padding: "12px 28px 16px", borderTop: "1px solid #E8E8E8", textAlign: "center" as const, fontSize: 9, color: "#999" }}>
+            The Rio Group — Powered by AZ &amp; Associates. All figures are estimates for informational purposes only. Subject to lender approval.
+          </div>
+        </div>
+
+        {/* ── SCREEN CONTENT ── */}
+        <h3 className="text-lg font-bold mb-5 no-print" style={{ color: "#111111", letterSpacing: "-0.01em" }}>Full Doc vs. Bank Statement Comparison</h3>
+
+        {/* Client info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 pb-5 border-b border-gray-100 no-print">
+          <div>
+            <label style={labelStyle}>Client Name <span className="text-xs text-gray-400 font-normal">(optional — for print)</span></label>
+            <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="e.g. John & Jane Smith" style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Property Address <span className="text-xs text-gray-400 font-normal">(optional — for print)</span></label>
+            <input type="text" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} placeholder="e.g. 1234 W Main St, Chandler AZ" style={inputStyle} />
+          </div>
+        </div>
+
+        {/* Side-by-side inputs */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 no-print">
+          {/* Full Doc inputs */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <h4 className="font-bold text-blue-800 mb-1">Full Doc (FHA)</h4>
+            <p className="text-xs text-blue-600 mb-3">Tax returns required. 3.5% min down. MIP for life of loan.</p>
+            <div className="space-y-3">
+              <MoneyInput label="Purchase Price" value={fdPrice} onChange={setFdPrice} />
+              <div>
+                <DownPaymentInput price={fdPrice} pct={fdDownPct} onChange={setFdDownPct} label="Down Payment" />
+                <div className="mt-1 text-xs text-blue-600 font-medium pl-1">= {fmt(fdCalc.down)} down · Loan {fmt(fdCalc.loan)}</div>
+              </div>
+              <NumberInput label="Rate (FHA)" value={fdRate} onChange={setFdRate} suffix="%" step="0.125" />
+              <TaxInput price={fdPrice} taxDollars={fdTaxDollars} onTaxDollarsChange={setFdTaxDollars} taxRate={fdTaxRate} onTaxRateChange={setFdTaxRate} label="Property Taxes" />
+              <MoneyInput label="Monthly HOA" value={fdHoa} onChange={setFdHoa} />
+            </div>
+          </div>
+
+          {/* Bank Statement inputs */}
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+            <h4 className="font-bold text-orange-800 mb-1">Bank Statement</h4>
+            <p className="text-xs text-orange-600 mb-3">No tax returns. 10% min down. No PMI. Rate ~1.5% above market.</p>
+            <div className="space-y-3">
+              <MoneyInput label="Purchase Price" value={bsPrice} onChange={setBsPrice} />
+              <div>
+                <DownPaymentInput price={bsPrice} pct={bsDownPct} onChange={setBsDownPct} label="Down Payment" />
+                <div className="mt-1 text-xs text-orange-600 font-medium pl-1">= {fmt(bsCalc.down)} down · Loan {fmt(bsCalc.loan)}</div>
+              </div>
+              <NumberInput label="Rate (conv + 1.5%)" value={bsRateAdj} onChange={setBsRateAdj} suffix="%" step="0.125" />
+              <TaxInput price={bsPrice} taxDollars={bsTaxDollars} onTaxDollarsChange={setBsTaxDollars} taxRate={bsTaxRate} onTaxRateChange={setBsTaxRate} label="Property Taxes" />
+              <MoneyInput label="Monthly HOA" value={bsHoa} onChange={setBsHoa} />
+            </div>
+          </div>
+        </div>
+
+        {/* Payment comparison cards */}
+        <div className="grid grid-cols-2 gap-4 mb-4 no-print">
+          <div className="bg-blue-50 border-2 border-blue-400 rounded-xl p-4 text-center">
+            <div className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Full Doc Monthly</div>
+            <div className="text-3xl font-bold text-blue-900 mt-1">{fmt(fdCalc.total)}</div>
+            <div className="text-xs text-blue-500 mt-1">P&I {fmt(fdCalc.pi)} + Tax/Ins + MIP{fdHoa > 0 ? " + HOA" : ""}</div>
+          </div>
+          <div className="bg-orange-50 border-2 border-orange-400 rounded-xl p-4 text-center">
+            <div className="text-xs text-orange-600 font-semibold uppercase tracking-wide">Bank Statement Monthly</div>
+            <div className="text-3xl font-bold text-orange-900 mt-1">{fmt(bsCalc.total)}</div>
+            <div className="text-xs text-orange-500 mt-1">P&I {fmt(bsCalc.pi)} + Tax/Ins{bsHoa > 0 ? " + HOA" : ""}</div>
+          </div>
+        </div>
+
+        {/* Monthly difference */}
+        <div className={`rounded-lg px-4 py-3 text-center text-sm font-semibold mb-4 no-print ${
+          paymentDiff > 0 ? "bg-blue-50 border border-blue-300 text-blue-800" : "bg-orange-50 border border-orange-300 text-orange-800"
+        }`}>
+          {paymentDiff > 0
+            ? `Full doc saves ${fmt(paymentDiff)}/mo (${fmt(paymentDiff * 12)}/yr)`
+            : `Bank statement saves ${fmt(Math.abs(paymentDiff))}/mo (${fmt(Math.abs(paymentDiff) * 12)}/yr)`}
+        </div>
+
+        {/* Detailed comparison cards */}
+        <div className="grid grid-cols-2 gap-3 mb-4 no-print">
+          <ResultCard label="FULL DOC P&I" value={fmt(fdCalc.pi)} sub="Principal & Interest only" />
+          <ResultCard label="BANK STMT P&I" value={fmt(bsCalc.pi)} sub="Principal & Interest only" />
+          <ResultCard label="FULL DOC PITI + MIP" value={fmt(fdCalc.piti)} sub={`Includes MIP of ${fmt(fdCalc.mip)}/mo`} />
+          <ResultCard label="BANK STMT PITI" value={fmt(bsCalc.piti)} sub="No PMI or MIP included" />
+          <ResultCard label="FULL DOC DOWN" value={fmt(fdCalc.down)} sub={`${fdDownPct}% of ${fmt(fdPrice)}`} />
+          <ResultCard label="BANK STMT DOWN" value={fmt(bsCalc.down)} sub={`${bsDownPct}% of ${fmt(bsPrice)}`} />
+          <ResultCard label="FULL DOC TOTAL" value={fmt(fdCalc.total)} sub="Total monthly w/ HOA" />
+          <ResultCard label="BANK STMT TOTAL" value={fmt(bsCalc.total)} sub="Total monthly w/ HOA" />
+        </div>
+
+        {/* Key insight */}
+        <div className="bg-rio-red/5 border-2 border-rio-red rounded-xl px-5 py-4 mb-4 no-print">
+          <h4 className="font-bold text-rio-red text-sm mb-2">Down Payment vs Monthly Cost Trade-off</h4>
+          <p className="text-sm text-gray-700">
+            Full doc requires <strong>{fmt(fdCalc.down)} down ({fdDownPct}%)</strong> — bank statement requires <strong>{fmt(bsCalc.down)} down ({bsDownPct}%)</strong>.
+            That&apos;s <strong className="text-rio-red">{fmt(Math.abs(downDiff))} {downDiff > 0 ? "more" : "less"}</strong> upfront for bank statement.
+          </p>
+          <p className="text-sm text-gray-700 mt-2">
+            Bank statement has no MIP, saving <strong>{fmt(fdCalc.mip)}/mo</strong>, but the higher rate adds <strong>{fmt(Math.abs(bsCalc.pi - fdCalc.pi))}/mo</strong> to P&I.
+            Net monthly difference: <strong className="text-rio-red">{fmt(Math.abs(paymentDiff))}/mo</strong>.
+          </p>
+        </div>
+
+        {/* Pros / Cons */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+            <h4 className="font-bold text-blue-800 mb-1">Full Doc (FHA) Notes</h4>
+            <ul className="text-blue-700 space-y-1">
+              <li>✅ Lower interest rate</li>
+              <li>✅ Only 3.5% down payment</li>
+              <li>✅ May qualify for DPA programs</li>
+              <li>⚠️ Requires 2 years tax returns</li>
+              <li>⚠️ MIP for life of loan</li>
+              <li>⚠️ Income must qualify on paper</li>
+            </ul>
+          </div>
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm">
+            <h4 className="font-bold text-orange-800 mb-1">Bank Statement Notes</h4>
+            <ul className="text-orange-700 space-y-1">
+              <li>✅ No tax returns needed</li>
+              <li>✅ No PMI or MIP ever</li>
+              <li>✅ No tax amendment exposure</li>
+              <li>✅ 12 months bank statements only</li>
+              <li>⚠️ 10% minimum down required</li>
+              <li>⚠️ Rate ~1.5% above market</li>
+            </ul>
+          </div>
+        </div>
+      </div>{/* end printRef */}
+
+      <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-gray-100 no-print">
+        <button onClick={() => handlePrint()}
+          style={{ padding: "12px 28px", borderRadius: "10px", background: "#C8202A", color: "#FFFFFF", fontWeight: 600, fontSize: "0.9375rem", border: "none", cursor: "pointer" }}>
+          Save PDF
+        </button>
+        <button onClick={downloadJPG} disabled={imgLoading}
+          style={{ padding: "12px 28px", borderRadius: "10px", background: "#111111", color: "#FFFFFF", fontWeight: 600, fontSize: "0.9375rem", border: "none", cursor: "pointer", opacity: imgLoading ? 0.6 : 1 }}>
+          {imgLoading ? "Saving…" : "Save as Image"}
         </button>
       </div>
     </div>
@@ -1174,7 +1791,7 @@ function NewBuildCalc() {
 
 /* ── Calculator 6: Loan Payoff Estimator ── */
 function LoanPayoffCalc({ onPayoffCalculated }: { onPayoffCalculated: (amount: number) => void }) {
-  const [originalLoan, setOriginalLoan] = useState(350000);
+  const [originalLoan, setOriginalLoan] = useState(450000);
   const [interestRate, setInterestRate] = useState(6.5);
   const [firstPaymentDate, setFirstPaymentDate] = useState("");
 
@@ -1220,7 +1837,7 @@ function LoanPayoffCalc({ onPayoffCalculated }: { onPayoffCalculated: (amount: n
     <div>
       <h3 className="text-lg font-bold mb-5" style={{ color: "#111111", letterSpacing: "-0.01em" }}>Loan Payoff Estimator</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <MoneyInput label="Original Loan Amount" value={originalLoan} onChange={setOriginalLoan} placeholder="350000" />
+        <MoneyInput label="Original Loan Amount" value={originalLoan} onChange={setOriginalLoan} placeholder="450000" />
         <NumberInput label="Original Interest Rate %" value={interestRate} onChange={setInterestRate} suffix="%" step="0.125" placeholder="6.5" />
         <div className="md:col-span-2">
           <label style={labelStyle}>Date of First Payment</label>
@@ -1265,24 +1882,33 @@ function LoanPayoffCalc({ onPayoffCalculated }: { onPayoffCalculated: (amount: n
 
 /* ── Calculator 7: Seller Net Proceeds ── */
 function SellerNetCalc({ importedPayoff }: { importedPayoff: number | null }) {
-  const [offerPrice, setOfferPrice] = useState(400000);
+  const [offerPrice, setOfferPrice] = useState(450000);
   const [payoff, setPayoff] = useState(0);
   const [annualTaxes, setAnnualTaxes] = useState(2000);
-  const [taxRate, setTaxRate] = useState(Number(((2000 / 400000) * 100).toFixed(4)));
+  const [taxRate, setTaxRate] = useState(Number(((2000 / 450000) * 100).toFixed(4)));
   const [hoaDues, setHoaDues] = useState(0);
   const [closingDate, setClosingDate] = useState("");
   const [concessionsPct, setConcessionsPct] = useState(0);
   const [buyerAgentPct, setBuyerAgentPct] = useState(2.5);
   const [listingAgentPct, setListingAgentPct] = useState(3);
   const [clientName, setClientName] = useState("");
+  const [propertyAddress, setPropertyAddress] = useState("");
+  const [hasSecondLien, setHasSecondLien] = useState(false);
+  const [secondLienPayoff, setSecondLienPayoff] = useState(0);
 
   const todayStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   const printRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const [imgLoading, setImgLoading] = useState(false);
+  const sellerPdfTitle = `Rio-Group-Seller-Net${clientName ? `-${safeName(clientName)}` : ""}`;
   const handlePrint = useReactToPrint({
     contentRef: printRef,
+    documentTitle: sellerPdfTitle,
     pageStyle: `
       @page { margin: 0.5in; size: letter portrait; }
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+      .print-root { padding: 0 !important; }
     `,
     onBeforePrint: () => new Promise<void>((resolve) => {
       const imgs = printRef.current?.querySelectorAll("img") ?? [];
@@ -1294,6 +1920,27 @@ function SellerNetCalc({ importedPayoff }: { importedPayoff: number | null }) {
       });
     }),
   });
+
+  const downloadJPG = async () => {
+    const el = summaryRef.current;
+    if (!el) return;
+    setImgLoading(true);
+    el.style.display = "block";
+    el.style.position = "fixed";
+    el.style.left = "-9999px";
+    try {
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
+      const link = document.createElement("a");
+      link.download = `${sellerPdfTitle}.jpg`;
+      link.href = canvas.toDataURL("image/jpeg", 0.95);
+      link.click();
+    } finally {
+      el.style.display = "";
+      el.style.position = "";
+      el.style.left = "";
+      setImgLoading(false);
+    }
+  };
 
   const parseLocalDate = (s: string) => {
     const [y, m, d] = s.split("-").map(Number);
@@ -1315,9 +1962,22 @@ function SellerNetCalc({ importedPayoff }: { importedPayoff: number | null }) {
   const listingAgentAmt = offerPrice * (listingAgentPct / 100);
   const titleFees       = offerPrice * 0.01;
 
-  const netProceeds = offerPrice - payoff - proratedTaxes - hoaDues
+  const secondLienAmt = hasSecondLien ? secondLienPayoff : 0;
+  const netProceeds = offerPrice - payoff - secondLienAmt - proratedTaxes - hoaDues
     - concessionsAmt - buyerAgentAmt - listingAgentAmt - titleFees;
   const isNegative = netProceeds < 0;
+
+  const sellerRows = ([
+    { label: "Purchase / Offer Price", value: fmt(offerPrice), isDeduction: false },
+    { label: "Payoff Amount", value: `− ${fmt(payoff)}`, isDeduction: true },
+    secondLienAmt > 0 ? { label: "HELOC / 2nd Lien / DPA Payoff", value: `− ${fmt(secondLienAmt)}`, isDeduction: true } : null,
+    closingDate && annualTaxes > 0 ? { label: `Prorated Property Taxes (${daysFromJan1} days)`, value: `− ${fmt(proratedTaxes)}`, isDeduction: true } : null,
+    hoaDues > 0 ? { label: "HOA Dues at Closing", value: `− ${fmt(hoaDues)}`, isDeduction: true } : null,
+    { label: `Seller Concessions (${concessionsPct.toFixed(1)}%)`, value: `− ${fmt(concessionsAmt)}`, isDeduction: true },
+    { label: `Buyer's Agent Commission (${buyerAgentPct.toFixed(2)}%)`, value: `− ${fmt(buyerAgentAmt)}`, isDeduction: true },
+    { label: `Listing Agent Commission (${listingAgentPct.toFixed(2)}%)`, value: `− ${fmt(listingAgentAmt)}`, isDeduction: true },
+    { label: "Title Fees (1%)", value: `− ${fmt(titleFees)}`, isDeduction: true },
+  ] as ({ label: string; value: string; isDeduction: boolean } | null)[]).filter((r): r is { label: string; value: string; isDeduction: boolean } => r !== null);
 
   const DeductionRow = ({ label, value }: { label: string; value: number }) => (
     <div className="flex justify-between items-center py-2 border-b border-gray-100">
@@ -1330,19 +1990,68 @@ function SellerNetCalc({ importedPayoff }: { importedPayoff: number | null }) {
     <div>
       <div ref={printRef} className="print-root">
 
-        {/* ── PRINT-ONLY HEADER ── */}
-        <div className="print-only mb-4">
-          <div className="flex justify-between items-center pb-3 mb-3 border-b-2 border-[#C8202A]">
+        {/* ── SUMMARY CARD (used for print AND jpg export) ── */}
+        <div ref={summaryRef} id="seller-summary-card" className="print-only" style={{ maxWidth: 680, background: "#FFFFFF", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
+          {/* Header band — black logos on white for reliable printing */}
+          <div style={{ padding: "20px 28px", borderBottom: "3px solid #C8202A", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group" style={{ height: 44, width: "auto", display: "block" } as React.CSSProperties} />
+              <div>
+                <div style={{ color: "#111", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" as const }}>The Rio Group</div>
+                <div style={{ color: "#999", fontSize: 9, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Built Different</div>
+              </div>
+            </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group"
-              style={{height:52,width:"auto",display:"block",printColorAdjust:"exact",WebkitPrintColorAdjust:"exact"} as React.CSSProperties} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates"
-              style={{height:40,width:"auto",display:"block",printColorAdjust:"exact",WebkitPrintColorAdjust:"exact"} as React.CSSProperties} />
+            <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 36, width: "auto", display: "block" } as React.CSSProperties} />
           </div>
-          <h1 className="text-xl font-bold mb-0.5 text-rio-black">Seller Net Proceeds Estimate</h1>
-          <p className="text-xs text-gray-500 mb-1">{todayStr}</p>
-          {clientName && <p className="text-xs text-gray-700">Client: <strong>{clientName}</strong></p>}
+
+          {/* Title bar */}
+          <div style={{ borderBottom: "2px solid #C8202A", padding: "10px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: "#C8202A", fontSize: 14, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const }}>Seller Net Proceeds</span>
+            <span style={{ color: "#999", fontSize: 11 }}>{todayStr}</span>
+          </div>
+
+          {/* Client info row */}
+          {(clientName || propertyAddress || closingDate) && (
+            <div style={{ padding: "14px 28px", borderBottom: "1px solid #E8E8E8", background: "#FAFAF9" }}>
+              <div style={{ fontSize: 9, color: "#C8202A", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", marginBottom: 4 }}>Prepared For</div>
+              {clientName && <div style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>{clientName}</div>}
+              {propertyAddress && <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 2 }}>{propertyAddress}</div>}
+              {closingDate && <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 2 }}>Closing: {parseLocalDate(closingDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>}
+            </div>
+          )}
+
+          {/* Breakdown table */}
+          <div style={{ margin: "16px 20px 20px", border: "1px solid #E8E8E8", borderRadius: 12, overflow: "hidden" }}>
+            {sellerRows.map((row, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "11px 18px", background: i % 2 === 0 ? "#FFFFFF" : "#FAFAF9", borderBottom: "1px solid #F0F0F0" }}>
+                <span style={{ fontSize: 13, color: "#6B6B6B" }}>{row.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: row.isDeduction ? "#DC2626" : "#111111" }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Net proceeds highlight */}
+          <div style={{ margin: "0 20px 20px", border: `2px solid ${isNegative ? "#DC2626" : "#C8202A"}`, borderRadius: 12, padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ color: isNegative ? "#DC2626" : "#C8202A", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em" }}>Estimated Net Proceeds</div>
+              <div style={{ color: "#666", fontSize: 11, marginTop: 2 }}>After all deductions and commissions</div>
+            </div>
+            <div style={{ color: isNegative ? "#DC2626" : "#C8202A", fontSize: 28, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{isNegative ? "−" : ""}{fmt(Math.abs(netProceeds))}</div>
+          </div>
+
+          {isNegative && (
+            <div style={{ margin: "0 20px 16px", padding: "10px 14px", border: "1px solid #FECACA", borderRadius: 8, fontSize: 11, color: "#991B1B", fontWeight: 600 }}>
+              ⚠ Estimated proceeds are negative — review payoff, concessions, and commission structure.
+            </div>
+          )}
+
+          {/* Footer */}
+          <div style={{ borderTop: "2px solid #C8202A", padding: "12px 28px 16px", textAlign: "center" as const }}>
+            <div style={{ fontSize: 10, color: "#6B6B6B", fontWeight: 500 }}>The Rio Group — Powered by AZ &amp; Associates</div>
+            <div style={{ fontSize: 8, color: "#ABABAB", marginTop: 3 }}>All figures are estimates for informational purposes only. Subject to lender approval and qualification.</div>
+          </div>
         </div>
 
         <h3 className="text-lg font-bold mb-5 no-print" style={{ color: "#111111", letterSpacing: "-0.01em" }}>Seller Net Proceeds Estimator</h3>
@@ -1361,8 +2070,22 @@ function SellerNetCalc({ importedPayoff }: { importedPayoff: number | null }) {
           />
         </div>
 
+        {/* Property address — for print */}
+        <div className="mb-4 no-print">
+          <label style={labelStyle}>
+            Property Address <span className="text-xs text-gray-400 font-normal">(optional — for print)</span>
+          </label>
+          <input
+            type="text"
+            value={propertyAddress}
+            onChange={(e) => setPropertyAddress(e.target.value)}
+            placeholder="e.g. 123 Main St, Phoenix, AZ 85001"
+            style={inputStyle}
+          />
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 no-print">
-          <MoneyInput label="Purchase / Offer Price" value={offerPrice} onChange={setOfferPrice} placeholder="400000" />
+          <MoneyInput label="Purchase / Offer Price" value={offerPrice} onChange={setOfferPrice} placeholder="450000" />
 
         {/* Payoff with import button */}
         <div>
@@ -1371,9 +2094,10 @@ function SellerNetCalc({ importedPayoff }: { importedPayoff: number | null }) {
             <div className="relative flex-1">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
               <input
-                type="number"
-                value={payoff || ""}
-                onChange={(e) => setPayoff(Number(e.target.value))}
+                type="text"
+                inputMode="numeric"
+                value={fmtComma(payoff)}
+                onChange={(e) => setPayoff(parseComma(e.target.value))}
                 style={{ ...inputStyle, paddingLeft: "28px" }}
                 placeholder="0"
               />
@@ -1387,6 +2111,26 @@ function SellerNetCalc({ importedPayoff }: { importedPayoff: number | null }) {
               </button>
             )}
           </div>
+        </div>
+
+        {/* HELOC / 2nd Lien / DPA toggle */}
+        <div className="md:col-span-2">
+          <label style={labelStyle}>Does the seller have a second lien, HELOC, or DPA payoff?</label>
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={() => { setHasSecondLien(true); }}
+              style={{ padding: "8px 20px", borderRadius: "8px", fontSize: "0.875rem", border: hasSecondLien ? "1.5px solid #C8202A" : "1.5px solid #E8E8E8", background: "#FFFFFF", color: hasSecondLien ? "#C8202A" : "#6B6B6B", fontWeight: hasSecondLien ? 600 : 500, cursor: "pointer" }}
+            >Yes</button>
+            <button
+              onClick={() => { setHasSecondLien(false); setSecondLienPayoff(0); }}
+              style={{ padding: "8px 20px", borderRadius: "8px", fontSize: "0.875rem", border: !hasSecondLien ? "1.5px solid #C8202A" : "1.5px solid #E8E8E8", background: "#FFFFFF", color: !hasSecondLien ? "#C8202A" : "#6B6B6B", fontWeight: !hasSecondLien ? 600 : 500, cursor: "pointer" }}
+            >No</button>
+          </div>
+          {hasSecondLien && (
+            <div className="mt-3">
+              <MoneyInput label="HELOC / 2nd Lien / DPA Payoff Amount" value={secondLienPayoff} onChange={setSecondLienPayoff} placeholder="0" />
+            </div>
+          )}
         </div>
 
         {/* Annual taxes with assessor link */}
@@ -1469,8 +2213,8 @@ function SellerNetCalc({ importedPayoff }: { importedPayoff: number | null }) {
         </div>
         </div>{/* end no-print inputs grid */}
 
-        {/* Line-by-line breakdown */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
+        {/* Line-by-line breakdown (screen only) */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5 no-print">
         <h4 className="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wide">Net Proceeds Breakdown</h4>
 
         <div className="flex justify-between items-center py-2 border-b border-gray-100">
@@ -1478,6 +2222,7 @@ function SellerNetCalc({ importedPayoff }: { importedPayoff: number | null }) {
           <span className="text-sm font-bold text-gray-900">{fmt(offerPrice)}</span>
         </div>
         <DeductionRow label="Payoff Amount" value={payoff} />
+        {secondLienAmt > 0 && <DeductionRow label="HELOC / 2nd Lien / DPA Payoff" value={secondLienAmt} />}
         {closingDate && annualTaxes > 0 && (
           <DeductionRow
             label={`Prorated Property Taxes (${fmt(annualTaxes)}/yr ÷ 365 × ${daysFromJan1} days)`}
@@ -1505,19 +2250,25 @@ function SellerNetCalc({ importedPayoff }: { importedPayoff: number | null }) {
         )}
       </div>{/* end breakdown card */}
 
-      {/* Print-only footer */}
-      <div className="print-only mt-3 pt-3 border-t border-gray-200 text-center text-xs text-gray-400">
-        The Rio Group — Powered by AZ &amp; Associates. All figures are estimates for informational purposes only. Subject to lender approval and qualification.
-      </div>
     </div>{/* end printRef */}
 
+      {/* Two download buttons — outside printRef */}
       <div className="flex flex-wrap items-center justify-between gap-3 mt-6 pt-6 border-t border-gray-100 no-print">
-        <button
-          onClick={() => handlePrint()}
-          style={{ padding: "12px 28px", borderRadius: "10px", background: "#C8202A", color: "#FFFFFF", fontWeight: 600, fontSize: "0.9375rem", border: "none", cursor: "pointer" }}
-        >
-          Print / Save PDF
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => handlePrint()}
+            style={{ padding: "12px 28px", borderRadius: "10px", background: "#C8202A", color: "#FFFFFF", fontWeight: 600, fontSize: "0.9375rem", border: "none", cursor: "pointer" }}
+          >
+            Save PDF
+          </button>
+          <button
+            onClick={downloadJPG}
+            disabled={imgLoading}
+            style={{ padding: "12px 28px", borderRadius: "10px", background: "#111111", color: "#FFFFFF", fontWeight: 600, fontSize: "0.9375rem", border: "none", cursor: "pointer", opacity: imgLoading ? 0.6 : 1 }}
+          >
+            {imgLoading ? "Saving…" : "Save as Image"}
+          </button>
+        </div>
         <FloatingCalc />
       </div>
     </div>
@@ -1532,9 +2283,8 @@ export default function Calculators() {
   const buyerTabs = [
     { id: "payment", label: "Monthly Payment" },
     { id: "dti", label: "DTI" },
-    { id: "maxprice", label: "Max Price" },
-    { id: "solar", label: "Solar Savings" },
     { id: "newbuild", label: "New Build vs Resale" },
+    { id: "bizowner", label: "Business Owner" },
   ];
 
   const sellerTabs = [
@@ -1585,13 +2335,14 @@ export default function Calculators() {
       </div>
 
       <div style={{ background: "#FFFFFF", borderRadius: "16px", border: "1px solid #E8E8E8", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: "32px" }}>
-        {active === "payment"    && <PaymentCalc />}
-        {active === "dti"        && <DTICalc />}
-        {active === "maxprice"   && <MaxPriceCalc />}
-        {active === "solar"      && <SolarCalc />}
-        {active === "newbuild"   && <NewBuildCalc />}
-        {active === "payoff"     && <LoanPayoffCalc onPayoffCalculated={(amt) => { setPayoffAmount(amt); }} />}
-        {active === "sellernet"  && <SellerNetCalc importedPayoff={payoffAmount} />}
+        <div style={{ display: active === "payment"  ? "block" : "none" }}><PaymentCalc /></div>
+        <div style={{ display: active === "dti"      ? "block" : "none" }}><DTICalc /></div>
+        <div style={{ display: active === "maxprice" ? "block" : "none" }}><MaxPriceCalc /></div>
+        <div style={{ display: active === "solar"    ? "block" : "none" }}><SolarCalc /></div>
+        <div style={{ display: active === "newbuild" ? "block" : "none" }}><NewBuildCalc /></div>
+        <div style={{ display: active === "bizowner" ? "block" : "none" }}><BusinessOwnerCalc /></div>
+        <div style={{ display: active === "payoff"   ? "block" : "none" }}><LoanPayoffCalc onPayoffCalculated={(amt) => { setPayoffAmount(amt); }} /></div>
+        <div style={{ display: active === "sellernet"? "block" : "none" }}><SellerNetCalc importedPayoff={payoffAmount} /></div>
       </div>
     </div>
   );

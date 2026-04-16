@@ -1,7 +1,7 @@
 "use client";
-import { useState, useRef, useMemo } from "react";
-import Image from "next/image";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useReactToPrint } from "react-to-print";
+import { TRG_LOGO_BLACK_B64, AZ_LOGO_BLACK_B64 } from "@/lib/printLogos";
 import {
   ClientData,
   defaultClientData,
@@ -114,6 +114,13 @@ function ThreeButtons({
   );
 }
 
+function fmtComma(n: number): string {
+  return n ? n.toLocaleString("en-US") : "";
+}
+function parseComma(s: string): number {
+  return Number(s.replace(/,/g, "")) || 0;
+}
+
 function MoneyInput({
   value,
   onChange,
@@ -132,9 +139,10 @@ function MoneyInput({
         $
       </span>
       <input
-        type="number"
-        value={value || ""}
-        onChange={(e) => onChange(Number(e.target.value))}
+        type="text"
+        inputMode="numeric"
+        value={fmtComma(value)}
+        onChange={(e) => onChange(parseComma(e.target.value))}
         style={{
           width: "100%",
           border: "1.5px solid #E8E8E8",
@@ -156,7 +164,7 @@ function MoneyInput({
           e.currentTarget.style.borderColor = "#E8E8E8";
           e.currentTarget.style.boxShadow = "none";
         }}
-        placeholder={placeholder || "0"}
+        placeholder={placeholder ? Number(placeholder).toLocaleString("en-US") : "0"}
       />
     </div>
   );
@@ -198,9 +206,17 @@ function AlertBox({
 export default function WizardShell({ onTabChange }: Props) {
   const [client, setClient] = useState<ClientData>(defaultClientData);
   const [overrideHomeowner, setOverrideHomeowner] = useState(false);
+  const [showScheduleC, setShowScheduleC] = useState(false);
   const [debtsTouched, setDebtsTouched] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
-  const handlePrint = useReactToPrint({ contentRef: printRef });
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    pageStyle: `
+      @page { margin: 0.5in; size: letter portrait; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; }
+    `,
+  });
 
   /* ---- update with cascade clearing ---- */
   const update = (partial: Partial<ClientData>) => {
@@ -253,6 +269,32 @@ export default function WizardShell({ onTabChange }: Props) {
     setDebtsTouched(false);
   };
 
+  /* ---- prefill from Self-Employed wizard ---- */
+  const handlePrefill = useCallback((e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    if (!detail) return;
+    setClient((prev) => ({
+      ...prev,
+      firstName: detail.firstName || prev.firstName,
+      lastName: detail.lastName || prev.lastName,
+      date: detail.date || prev.date,
+      annualIncome: detail.annualIncome || prev.annualIncome,
+      monthlyDebts: detail.monthlyDebts || prev.monthlyDebts,
+      creditScore: detail.creditScore || prev.creditScore,
+      isSelfEmployed: detail.isSelfEmployed || prev.isSelfEmployed,
+      hasCosigner: detail.hasCosigner || prev.hasCosigner,
+      cosignerIncome: detail.cosignerIncome || prev.cosignerIncome,
+      cosignerDebts: detail.cosignerDebts || prev.cosignerDebts,
+      cosignerCreditScore: detail.cosignerCreditScore || prev.cosignerCreditScore,
+    }));
+    if (detail.monthlyDebts > 0) setDebtsTouched(true);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("prefill-wizard", handlePrefill);
+    return () => window.removeEventListener("prefill-wizard", handlePrefill);
+  }, [handlePrefill]);
+
   /* ---- visibility conditions ---- */
   const showCitizenship = client.firstName.trim().length > 0;
   const isITINPath = client.citizenship === "no";
@@ -302,12 +344,8 @@ export default function WizardShell({ onTabChange }: Props) {
   }, [canShowResults, client]);
 
   /* ---- DTI preview computation ---- */
-  const totalIncome =
-    client.annualIncome +
-    (client.hasCosigner === "yes" ? client.cosignerIncome : 0);
-  const totalDebts =
-    client.monthlyDebts +
-    (client.hasCosigner === "yes" ? client.cosignerDebts : 0);
+  const totalIncome = client.annualIncome;
+  const totalDebts = client.monthlyDebts;
   const monthlyIncome = totalIncome / 12;
   const maxPayment45 = monthlyIncome * 0.45 - totalDebts;
   const maxPayment57 = monthlyIncome * 0.57 - totalDebts;
@@ -320,7 +358,8 @@ export default function WizardShell({ onTabChange }: Props) {
           const pi = calculateMonthlyPayment(loan, rates.conventional, 30);
           const tax = (client.purchasePrice * 0.0045) / 12;
           const ins = 1350 / 12;
-          return pi + tax + ins;
+          const hoa = client.hasHOA === "yes" ? client.hoaAmount : 0;
+          return pi + tax + ins + hoa;
         })()
       : 0;
   const housingDTI =
@@ -354,6 +393,60 @@ export default function WizardShell({ onTabChange }: Props) {
 
   return (
     <div>
+      {/* Schedule C Modal */}
+      {showScheduleC && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowScheduleC(false)}>
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowScheduleC(false)}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-lg z-10"
+            >
+              ✕
+            </button>
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">IRS Schedule C — Net Profit (Line 31)</h3>
+              <div className="relative border border-gray-200 rounded-lg overflow-hidden mb-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://www.irs.gov/pub/irs-pdf/f1040sc.pdf"
+                  alt="IRS Schedule C Form"
+                  style={{ display: "none" }}
+                />
+                <div className="bg-gray-50 p-8 text-center">
+                  <div className="inline-block border-2 border-gray-300 rounded-lg p-6 bg-white mb-4" style={{ maxWidth: "420px" }}>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">IRS Form 1040 — Schedule C</p>
+                    <p className="text-sm font-bold text-gray-800 mb-4">Profit or Loss From Business</p>
+                    <div className="space-y-2 text-left text-sm text-gray-600">
+                      <div className="flex justify-between border-b border-gray-100 pb-1"><span>Line 29: Tentative profit</span><span className="text-gray-400">$_____</span></div>
+                      <div className="flex justify-between border-b border-gray-100 pb-1"><span>Line 30: Business use of home</span><span className="text-gray-400">$_____</span></div>
+                      <div className="flex justify-between items-center py-2 px-3 rounded-lg" style={{ background: "#FFF5F5", border: "2px solid #C8202A" }}>
+                        <span className="font-bold text-gray-900">Line 31: Net profit (or loss)</span>
+                        <span className="font-bold text-[#C8202A]">← USE THIS</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center gap-2 text-[#C8202A] font-bold text-sm">
+                    <span className="text-2xl">↑</span>
+                    <span>NET PROFIT — Use this number</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Source: IRS Form 1040 Schedule C. Use the 2-year average of Line 31 for income qualification.
+              </p>
+              <a
+                href="https://www.irs.gov/pub/irs-pdf/f1040sc.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-3 text-xs text-[#C8202A] underline font-medium"
+              >
+                Download full IRS Schedule C form (PDF) ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Page header row */}
       <div className="flex items-center justify-between mb-6 no-print">
         <div>
@@ -486,18 +579,11 @@ export default function WizardShell({ onTabChange }: Props) {
             />
 
             {client.hasCosigner === "yes" && (
-              <div className="mt-4 space-y-3 fade-in">
+              <div className="mt-4 fade-in">
                 <div style={{ background: "#FFFBEB", borderLeft: "4px solid #F59E0B", borderRadius: "0 8px 8px 0", padding: "14px 16px" }}>
                   <p className="text-sm font-semibold" style={{ color: "#92400E", marginBottom: "4px" }}>Co-Signer Requirements</p>
                   <p className="text-sm" style={{ color: "#92400E" }}>
-                    All following answers should reflect the combined profile of both the client and co-signer.
-                    If either party triggers a condition, apply it to both. The lesser of the two credit scores
-                    will be used for program qualification.
-                  </p>
-                </div>
-                <div style={{ background: "#EFF6FF", borderLeft: "4px solid #3B82F6", borderRadius: "0 8px 8px 0", padding: "14px 16px" }}>
-                  <p className="text-sm" style={{ color: "#1E40AF" }}>
-                    From this point forward all questions apply to both borrowers equally. One answer covers both.
+                    All following answers reflect both borrowers combined. Income and debts are added together. The lesser of the two credit scores is used for qualification. If either party triggers a condition it applies to both.
                   </p>
                 </div>
               </div>
@@ -682,7 +768,7 @@ export default function WizardShell({ onTabChange }: Props) {
             {/* Annual Income */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2" style={{ color: "#111111" }}>
-                Annual Gross Income
+                {client.hasCosigner === "yes" ? "Combined Annual Gross Income" : "Annual Gross Income"}
               </label>
               <MoneyInput
                 value={client.annualIncome}
@@ -690,52 +776,13 @@ export default function WizardShell({ onTabChange }: Props) {
                 placeholder="75000"
               />
               {client.hasCosigner === "yes" && (
-                <p className="text-xs text-gray-400 italic mt-1">Enter primary borrower income only — co-signer income entered separately below</p>
+                <p className="text-xs text-gray-400 mt-1">Include both client and co-signer income combined</p>
               )}
             </div>
 
-            {/* Co-signer income/debt fields — shown when co-signer selected at top */}
+            {/* Co-signer fields removed — income/debts entered as combined totals */}
             {client.annualIncome > 0 && (
               <>
-                {client.hasCosigner === "yes" && (
-                  <div className="pl-4 ml-2 space-y-4 mb-4 fade-in" style={{ borderLeft: "3px solid rgba(200,32,42,0.2)" }}>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: "#111111" }}>
-                        Co-signer Annual Gross Income
-                      </label>
-                      <MoneyInput
-                        value={client.cosignerIncome}
-                        onChange={(v) => update({ cosignerIncome: v })}
-                      />
-                      <p className="text-xs text-gray-400 italic mt-1">Combined with client income for DTI qualification</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: "#111111" }}>
-                        Co-signer Monthly Debts
-                      </label>
-                      <MoneyInput
-                        value={client.cosignerDebts}
-                        onChange={(v) => update({ cosignerDebts: v })}
-                      />
-                      <p className="text-xs text-gray-400 italic mt-1">Combined with client debts for total DTI calculation</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: "#111111" }}>
-                        Co-signer Credit Score
-                      </label>
-                      <input
-                        type="number"
-                        value={client.cosignerCreditScore || ""}
-                        onChange={(e) =>
-                          update({ cosignerCreditScore: Number(e.target.value) })
-                        }
-                        className="w-full outline-none" style={{ border: "1.5px solid #E8E8E8", borderRadius: "10px", padding: "12px 16px", fontSize: "0.9375rem", color: "#111111", background: "#FFFFFF" }}
-                        placeholder="700"
-                      />
-                    </div>
-                  </div>
-                )}
-
                 {/* Self-employed */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium mb-2" style={{ color: "#111111" }}>
@@ -751,9 +798,22 @@ export default function WizardShell({ onTabChange }: Props) {
 
                 {client.isSelfEmployed === "yes" && (
                   <div className="pl-4 ml-2 mb-4 fade-in" style={{ borderLeft: "3px solid rgba(200,32,42,0.2)" }}>
+                    {/* Schedule C info card */}
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 mb-4">
+                      <p className="text-sm text-blue-800">
+                        Use net income from <strong>Schedule C (Line 31)</strong> — take a 2-year average of the net profit figure. With Cross Country Mortgage, 1 year may be acceptable if the client has been in business 5 or more years.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowScheduleC(true)}
+                        className="mt-2 px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#C8202A] text-[#C8202A] hover:bg-[#C8202A]/5 transition-colors"
+                      >
+                        View Schedule C Sample
+                      </button>
+                    </div>
+
                     <label className="block text-sm font-medium mb-2" style={{ color: "#111111" }}>
-                      Does the client reduce their net income on taxes to lower
-                      tax liability?
+                      Did the client have large write-offs over the last 2 years to decrease their tax liability?
                     </label>
                     <YesNoButtons
                       value={client.reducesNetIncome}
@@ -762,10 +822,9 @@ export default function WizardShell({ onTabChange }: Props) {
                       }
                     />
                     {client.reducesNetIncome === "yes" && (
-                      <AlertBox color="amber" title="⚠️ Complex income file">
+                      <AlertBox color="amber" title="High Write-Off Warning">
                         <p className="mt-1">
-                          Recommend Cross Country Mortgage partner for this
-                          client.
+                          If the client has significant write-offs that reduce their qualifying income, they may need to amend their tax returns to show higher net income. This type of file may be better suited for our preferred lending partner at Cross Country Mortgage who specializes in complex self-employed scenarios.
                         </p>
                       </AlertBox>
                     )}
@@ -785,9 +844,11 @@ export default function WizardShell({ onTabChange }: Props) {
                     }
                   />
                   {client.hasEmploymentGaps === "yes" && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Documentation may be required — this is OK and manageable.
-                    </p>
+                    <AlertBox color="amber" title="Employment Gap — Documentation Required">
+                      <p className="mt-1">
+                        This is OK and manageable. The lender will need to verify a combined 2 years of work history. Does not need to be the same company or industry.
+                      </p>
+                    </AlertBox>
                   )}
                 </div>
 
@@ -895,7 +956,7 @@ export default function WizardShell({ onTabChange }: Props) {
 
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2" style={{ color: "#111111" }}>
-                Total Monthly Debt Payments
+                {client.hasCosigner === "yes" ? "Combined Monthly Debt Payments" : "Total Monthly Debt Payments"}
               </label>
               <MoneyInput
                 value={client.monthlyDebts}
@@ -906,7 +967,7 @@ export default function WizardShell({ onTabChange }: Props) {
                 placeholder="500"
               />
               {client.hasCosigner === "yes" && (
-                <p className="text-xs text-gray-400 italic mt-1">Include client debts only — co-signer debts entered separately above</p>
+                <p className="text-xs text-gray-400 mt-1">Include both client and co-signer debts combined</p>
               )}
               {!debtsTouched && (
                 <button
@@ -930,14 +991,14 @@ export default function WizardShell({ onTabChange }: Props) {
                     <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "#111111" }}>
                       ${maxPayment45 > 0 ? maxPayment45.toFixed(0) : "—"}
                     </div>
-                    <div style={{ fontSize: "0.6875rem", color: "#9B9B9B" }}>Front-End Guide</div>
+                    <div style={{ fontSize: "0.6875rem", color: "#9B9B9B", lineHeight: 1.3 }}>Front-End Ratio — Conventional programs and FHA housing payment vs income only</div>
                   </div>
                   <div style={{ background: "#FFFFFF", borderRadius: "10px", padding: "14px", border: "1px solid #E8E8E8" }}>
                     <div style={{ fontSize: "0.6875rem", color: "#6B6B6B", marginBottom: "4px" }}>Max Payment (57% DTI)</div>
                     <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "#111111" }}>
                       ${maxPayment57 > 0 ? maxPayment57.toFixed(0) : "—"}
                     </div>
-                    <div style={{ fontSize: "0.6875rem", color: "#9B9B9B" }}>Back-End Guide</div>
+                    <div style={{ fontSize: "0.6875rem", color: "#9B9B9B", lineHeight: 1.3 }}>Back-End Ratio — FHA only, includes all debts plus monthly housing payment</div>
                   </div>
                 </div>
                 {estimatedPITI > 0 && (
@@ -996,7 +1057,7 @@ export default function WizardShell({ onTabChange }: Props) {
 
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2" style={{ color: "#111111" }}>
-                Credit Score (Primary Borrower)
+                {client.hasCosigner === "yes" ? "Credit Score (Lower of the Two)" : "Credit Score"}
               </label>
               <input
                 type="number"
@@ -1007,6 +1068,9 @@ export default function WizardShell({ onTabChange }: Props) {
                 className="w-full outline-none" style={{ border: "1.5px solid #E8E8E8", borderRadius: "10px", padding: "12px 16px", fontSize: "0.9375rem", color: "#111111", background: "#FFFFFF" }}
                 placeholder="680"
               />
+              {client.hasCosigner === "yes" && (
+                <p className="text-xs text-gray-400 mt-1">Enter the lower score between client and co-signer</p>
+              )}
             </div>
 
             {client.creditScore > 0 && client.creditScore < 580 && (
@@ -1122,7 +1186,7 @@ export default function WizardShell({ onTabChange }: Props) {
               <MoneyInput
                 value={client.purchasePrice}
                 onChange={(v) => update({ purchasePrice: v })}
-                placeholder="350000"
+                placeholder="450000"
               />
             </div>
 
@@ -1135,9 +1199,7 @@ export default function WizardShell({ onTabChange }: Props) {
                   <ThreeButtons
                     options={[
                       { label: "Single Family", value: "single-family" },
-                      { label: "Condo", value: "condo" },
-                      { label: "Townhome", value: "townhome" },
-                      { label: "New Build", value: "new-build" },
+                      { label: "Townhome/Condo", value: "condo" },
                     ]}
                     value={client.propertyType}
                     onChange={(v) =>
@@ -1151,8 +1213,7 @@ export default function WizardShell({ onTabChange }: Props) {
                 {client.propertyType === "condo" && (
                   <AlertBox color="amber">
                     <p>
-                      ⚠️ Condo — conventional only, 660+ score required. FHA
-                      programs ineligible.
+                      ⚠️ Townhome/Condo — conventional financing only, 660+ score required. FHA programs are ineligible.
                     </p>
                   </AlertBox>
                 )}
@@ -1229,7 +1290,7 @@ export default function WizardShell({ onTabChange }: Props) {
                       )}
 
                     {client.hasHOA === "yes" && (
-                      <div className="pl-4 ml-2 mb-4 fade-in" style={{ borderLeft: "3px solid rgba(200,32,42,0.2)" }}>
+                      <div className="mb-4 mt-2">
                         <label className="block text-sm font-medium mb-2" style={{ color: "#111111" }}>
                           Monthly HOA Amount
                         </label>
@@ -1238,6 +1299,7 @@ export default function WizardShell({ onTabChange }: Props) {
                           onChange={(v) => update({ hoaAmount: v })}
                           placeholder="100"
                         />
+                        <p className="text-xs text-gray-400 italic mt-1">Average HOA in Phoenix Metro: $80–$120/month</p>
                       </div>
                     )}
 
@@ -1269,19 +1331,27 @@ export default function WizardShell({ onTabChange }: Props) {
             <SectionLabel label="Recommendations" />
 
             <div ref={printRef} className="print-container">
-              {/* Print Header */}
-              <div className="print-only mb-6 text-center">
-                <Image
-                  src="/rio-landscape.png"
-                  alt="The Rio Group"
-                  width={200}
-                  height={60}
-                  className="mx-auto mb-2"
-                />
-                <p className="text-sm text-gray-500">
-                  Prepared for {client.firstName} {client.lastName} |{" "}
-                  {client.date}
-                </p>
+              {/* Print Header — base64 logos for reliable print */}
+              <div className="print-only mb-6">
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 12, borderBottom: "3px solid #C8202A", marginBottom: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={TRG_LOGO_BLACK_B64} alt="The Rio Group" style={{ height: 44, width: "auto", display: "block" }} />
+                    <div>
+                      <div style={{ color: "#111", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" as const }}>The Rio Group</div>
+                      <div style={{ color: "#999", fontSize: 9, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Built Different</div>
+                    </div>
+                  </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={AZ_LOGO_BLACK_B64} alt="AZ & Associates" style={{ height: 36, width: "auto", display: "block" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 9, color: "#C8202A", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", marginBottom: 4 }}>Prepared For</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>{client.firstName} {client.lastName}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#999" }}>{client.date}</div>
+                </div>
               </div>
 
               <h3 className="text-xl font-bold mb-1">
@@ -1299,8 +1369,8 @@ export default function WizardShell({ onTabChange }: Props) {
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[
-                    { label: "Annual Income", value: fmt(client.annualIncome), sub: client.hasCosigner === "yes" ? `+ Co-signer: ${fmt(client.cosignerIncome)}` : undefined },
-                    { label: "Monthly Debts", value: `${fmt(client.monthlyDebts)}/mo`, sub: client.hasCosigner === "yes" ? `+ Co-signer: ${fmt(client.cosignerDebts)}/mo` : undefined },
+                    { label: "Annual Income", value: fmt(client.annualIncome), sub: client.hasCosigner === "yes" ? "Combined w/ co-signer" : undefined },
+                    { label: "Monthly Debts", value: `${fmt(client.monthlyDebts)}/mo`, sub: client.hasCosigner === "yes" ? "Combined w/ co-signer" : undefined },
                     { label: "Monthly Income", value: fmt(monthlyIncome), sub: `Total debts: ${fmt(totalDebts)}/mo` },
                     { label: "Purchase Price", value: fmt(client.purchasePrice), sub: `Credit: ${client.creditScore} · Down: ${fmt(client.downPaymentAvailable)}` },
                   ].map((item) => (
@@ -1458,6 +1528,19 @@ export default function WizardShell({ onTabChange }: Props) {
                       </ul>
                     </div>
                   </div>
+                  {bestMatch.program.id === 4 && (
+                    <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5">
+                      <p className="text-sm text-amber-800 font-medium">+~$200/month added to payment for solar — partially offset by electric savings</p>
+                    </div>
+                  )}
+                  {bestMatch.program.id === 3 && (
+                    <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5">
+                      <p className="text-sm text-amber-800 font-medium">+~$200/month added to payment for down payment assistance 2nd lien</p>
+                    </div>
+                  )}
+                  {bestMatch.program.loanType === "FHA" && (
+                    <p className="mt-3 text-xs text-gray-500">PMI required — FHA mortgage insurance premium applies</p>
+                  )}
                 </div>
               )}
 
@@ -1466,7 +1549,7 @@ export default function WizardShell({ onTabChange }: Props) {
                 All Programs — Detailed Breakdown
               </h4>
               <div className="space-y-4">
-                {sorted.map((result) => {
+                {sorted.filter((result) => !bestMatch || result.program.id !== bestMatch.program.id).map((result) => {
                   const isEligible = result.eligible && !result.conditional;
                   const isConditional = result.eligible && result.conditional;
                   const status = isEligible ? "qualifies" : isConditional ? "conditional" : "disqualified";
@@ -1577,6 +1660,44 @@ export default function WizardShell({ onTabChange }: Props) {
                           )}
                         </div>
                       )}
+                      {result.program.id === 4 && (
+                        <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+                          <p className="text-xs text-amber-800 font-medium">+~$200/month added to payment for solar — partially offset by electric savings</p>
+                        </div>
+                      )}
+                      {result.program.id === 3 && (
+                        <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+                          <p className="text-xs text-amber-800 font-medium">+~$200/month added to payment for down payment assistance 2nd lien</p>
+                        </div>
+                      )}
+                      {result.program.loanType === "FHA" && (
+                        <p className="mt-2 text-xs text-gray-500">PMI required — FHA mortgage insurance premium applies</p>
+                      )}
+                      {/* Pros / Cons */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                        <div>
+                          <h5 style={{ fontSize: "0.6875rem", fontWeight: 600, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>Pros</h5>
+                          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
+                            {result.program.pros.map((p, i) => (
+                              <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: "6px", fontSize: "0.8125rem", color: "#111" }}>
+                                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#16A34A", flexShrink: 0, marginTop: 5 }} />
+                                {p}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <h5 style={{ fontSize: "0.6875rem", fontWeight: 600, color: "#6B6B6B", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>Cons</h5>
+                          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
+                            {result.program.cons.map((c, i) => (
+                              <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: "6px", fontSize: "0.8125rem", color: "#6B6B6B" }}>
+                                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#9B9B9B", flexShrink: 0, marginTop: 5 }} />
+                                {c}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
                       {result.reasons.length > 0 && (
                         <div style={{ fontSize: "0.8125rem", color: "#6B6B6B", marginTop: "8px", display: "flex", flexDirection: "column", gap: "4px" }}>
                           {result.reasons.map((r, i) => (
@@ -1595,15 +1716,19 @@ export default function WizardShell({ onTabChange }: Props) {
               {/* Next Steps */}
               <div style={{ marginTop: "24px", background: "#F7F6F4", borderRadius: "12px", border: "1px solid #E8E8E8", padding: "20px" }}>
                 <h4 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "#111111", marginBottom: "8px" }}>Next Steps</h4>
-                {ccFlags.length > 0 ? (
-                  <p style={{ fontSize: "0.875rem", color: "#6B6B6B", lineHeight: "1.6" }}>
+                {ccFlags.length > 0 && (
+                  <p style={{ fontSize: "0.875rem", color: "#6B6B6B", lineHeight: "1.6", marginBottom: "10px" }}>
                     Introduce the client to our lending partner at Cross Country Mortgage for specialized support with their file.
                   </p>
-                ) : (
-                  <p style={{ fontSize: "0.875rem", color: "#6B6B6B", lineHeight: "1.6" }}>
-                    Guide the client through the next steps in the process.
-                  </p>
                 )}
+                <p style={{ fontSize: "0.875rem", color: "#6B6B6B", lineHeight: "1.6", marginBottom: "10px" }}>
+                  Get pre-qualified with your suggested lender. This is not a guarantee — credit, debts, and income must still be fully verified.
+                </p>
+                <div style={{ background: "#FFFBEB", borderLeft: "4px solid #F59E0B", borderRadius: "0 8px 8px 0", padding: "10px 14px" }}>
+                  <p style={{ fontSize: "0.8125rem", color: "#92400E", fontWeight: 500 }}>
+                    Important: Client must sign the Start Shopping Package prior to being connected with the lender due to liability requirements.
+                  </p>
+                </div>
               </div>
 
               {/* Disclaimer */}
@@ -1620,7 +1745,7 @@ export default function WizardShell({ onTabChange }: Props) {
                 onClick={() => handlePrint()}
                 style={{ padding: "12px 28px", borderRadius: "10px", background: "#C8202A", color: "#FFFFFF", fontWeight: 600, fontSize: "0.9375rem", border: "none", cursor: "pointer" }}
               >
-                Print / Save PDF
+                Save PDF
               </button>
               <button
                 onClick={restart}

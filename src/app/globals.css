@@ -6,34 +6,34 @@
 
 :root {
   --red: #C8202A;
-  --black: #0D0D0D;
+  --black: #0A0A0A;
   --white: #FFFFFF;
-  --gray-50: #F9F8F6;
-  --gray-100: #F0EEE9;
-  --gray-300: #D4D0C8;
-  --gray-500: #8C8880;
-  --gray-700: #4A4845;
-  --shadow-sm: 0 1px 4px rgba(0,0,0,0.06);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
+  --gray-50: #F3F3F3;
+  --gray-100: #E8E8E8;
+  --gray-300: #CCCCCC;
+  --gray-500: #777777;
+  --gray-700: #333333;
+  --shadow-sm: 0 1px 6px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.10);
+  --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
   --radius: 14px;
   --radius-sm: 8px;
 
-  /* Legacy aliases (keep for components that still reference them) */
+  /* Legacy aliases */
   --rio-red: #C8202A;
-  --rio-red-light: #FFF5F5;
-  --rio-red-tint: #FFF8F8;
-  --rio-black: #0D0D0D;
+  --rio-red-light: #FFF0F0;
+  --rio-red-tint: #FFF5F5;
+  --rio-black: #0A0A0A;
   --rio-white: #FFFFFF;
-  --rio-surface: #F9F8F6;
+  --rio-surface: #F3F3F3;
   --rio-surface-card: #FFFFFF;
-  --rio-text-primary: #0D0D0D;
-  --rio-text-secondary: #8C8880;
-  --rio-text-muted: #8C8880;
-  --rio-border: #D4D0C8;
+  --rio-text-primary: #0A0A0A;
+  --rio-text-secondary: #555555;
+  --rio-text-muted: #888888;
+  --rio-border: #E0E0E0;
   --rio-border-focus: #C8202A;
-  --rio-shadow-card: 0 4px 16px rgba(0,0,0,0.08);
-  --rio-shadow-card-hover: 0 8px 32px rgba(0,0,0,0.10);
+  --rio-shadow-card: 0 4px 20px rgba(0,0,0,0.08);
+  --rio-shadow-card-hover: 0 8px 36px rgba(0,0,0,0.14);
 }
 
 @layer base {
@@ -286,6 +286,25 @@
   [ref="printRef"] {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  /* Wizard print container — compact for multi-program output */
+  .print-container {
+    font-size: 10px;
+    padding: 0;
+  }
+  .print-container .space-y-4 > * {
+    padding: 12px !important;
+    margin-bottom: 8px !important;
+  }
+  .print-container .grid {
+    gap: 6px !important;
+  }
+  .print-container h3 {
+    font-size: 14px !important;
+  }
+  .print-container h4 {
+    font-size: 11px !important;
   }
 }
 

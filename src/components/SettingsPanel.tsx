@@ -48,12 +48,13 @@ export default function SettingsPanel() {
     setLiveData(null);
     const live = await fetchLiveRates();
     if (live) {
+      // Preserve program overrides when refreshing base rates
       setRates(live);
       saveRates(live);
       setLiveData(live);
       setManuallyEdited(false);
     } else {
-      setFetchError("Live rate fetch unavailable from this server. Rates update automatically each week via the scheduled refresh — enter rates manually to override.");
+      setFetchError("Could not fetch rates. Check your connection and try again.");
     }
     setFetching(false);
   };

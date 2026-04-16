@@ -38,102 +38,6 @@ export interface LoanProgram {
 
 export const loanPrograms: LoanProgram[] = [
   {
-    id: 1,
-    name: "1% Down, No PMI",
-    shortName: "Program 1",
-    loanType: "Conventional",
-    downPayment: "1% down",
-    rateDescription: "Market rate conventional",
-    rateOffset: 0,
-    rateBase: "conventional",
-    term: 30,
-    hasPMI: false,
-    maxDTI: 45,
-    housingDTI: 45,
-    minCreditScore: 600,
-    incomeLimit: 160000,
-    latePaymentsAllowed: false,
-    collectionsAllowed: false,
-    minTraditionalTradelines: 1,
-    minAlternativeTradelines: 2,
-    requiresRentalHistory: true,
-    tradelineNote: "1 traditional 12+ months + 2 alternative tradelines + rental history required",
-    citizenshipOptions: ["US Citizen", "Permanent Resident"],
-    dacaAllowed: false,
-    itinOnly: false,
-    homeownershipRestriction: "First-time buyer or not currently owning",
-    sellerCreditMax: "4% (cannot be used for additional agent/broker compensation)",
-    notes: "Best option for well-qualified buyers. Strict credit but lowest score floor.",
-    pros: [
-      "No PMI saves ~$150–200/month vs FHA",
-      "Lowest effective payment for qualifying buyers",
-      "Market rate financing",
-      "Only 1% out of pocket",
-    ],
-    cons: [
-      "Strict: zero lates, zero collections",
-      "Income cap at $160K",
-      "Requires rental history",
-      "No DACA/work permits",
-      "Requires tradelines",
-    ],
-    bestFor: "Well-qualified buyers with clean credit history",
-    additionalPaymentImpact: 0,
-    downPaymentPercent: 1,
-    isGrant: false,
-    grantAmount: 0,
-    programMaxPrice: 850000,
-    programMaxPriceNote: "Max $850K — based on $160K income cap at 45% DTI with no debt",
-  },
-  {
-    id: 2,
-    name: "$1,000 Down — 30/40 Year, No PMI",
-    shortName: "Program 2",
-    loanType: "Conventional",
-    downPayment: "$1,000 flat",
-    rateDescription: "Market + 0.625%",
-    rateOffset: 0.625,
-    rateBase: "conventional",
-    term: 40,
-    hasPMI: false,
-    maxDTI: 45,
-    housingDTI: 45,
-    minCreditScore: 640,
-    incomeLimit: null,
-    latePaymentsAllowed: false,
-    collectionsAllowed: false,
-    minTraditionalTradelines: 2,
-    minAlternativeTradelines: 0,
-    requiresRentalHistory: false,
-    tradelineNote: "2 traditional OR 1 traditional + 2 alternative. If no rental history → must have 2 traditional",
-    citizenshipOptions: ["US Citizen", "Permanent Resident", "DACA/Work Permit"],
-    dacaAllowed: true,
-    itinOnly: false,
-    homeownershipRestriction: "Cannot have owned a home in the last 3 years",
-    sellerCreditMax: "3% minimum required to achieve $1K down (cannot buy down rate)",
-    notes: "Good for DACA clients, slightly lower scores, no rental history needed with 2 tradelines.",
-    pros: [
-      "Only $1,000 out of pocket",
-      "40-year term lowers monthly payment",
-      "No income limit",
-      "DACA and work permit eligible",
-      "More flexible on tradelines",
-    ],
-    cons: [
-      "Higher rate (+0.625% over market)",
-      "More interest paid over life of loan",
-      "Still requires clean credit (no lates, no collections)",
-      "3-year homeownership restriction",
-    ],
-    bestFor: "Buyers without rental history, DACA clients",
-    additionalPaymentImpact: 0,
-    downPaymentPercent: 0,
-    isGrant: false,
-    grantAmount: 0,
-    programMaxPrice: 650000,
-    programMaxPriceNote: "Max $650K — conventional program limit for this loan structure",
-  },
-  {
     id: 3,
     name: "FHA Down Payment Assistance (DPA)",
     shortName: "Program 3",
@@ -159,7 +63,7 @@ export const loanPrograms: LoanProgram[] = [
     itinOnly: false,
     homeownershipRestriction: "Can be previous homeowner. Current homeowner allowed only if: 25%+ equity, family size increased, and home is vacated/rented.",
     sellerCreditMax: "6% (FHA standard)",
-    notes: "Most flexible on credit history. ~$450/month higher payment than Program 1 equivalent.",
+    notes: "Most flexible on credit history.",
     pros: [
       "Most flexible on credit history",
       "No tradeline requirements",
@@ -167,7 +71,6 @@ export const loanPrograms: LoanProgram[] = [
       "No money needed at closing",
     ],
     cons: [
-      "~$450/month higher payment than Program 1",
       "Second loan must be repaid (10-year term)",
       "PMI adds to monthly cost",
       "No DACA",
@@ -267,7 +170,7 @@ export const loanPrograms: LoanProgram[] = [
       "Income cap at $89K",
       "3% down still required (buyer brings funds)",
       "PMI applies",
-      "Higher rate than Program 1",
+      "Higher rate than conventional market",
     ],
     bestFor: "Straightforward grant, flexible homeownership history, DACA OK",
     additionalPaymentImpact: 0,
@@ -579,7 +482,7 @@ export function evaluateEligibility(
       }
     }
 
-    // Calculate payment
+    // Calculate payment — check for manual program rate overrides first
     const baseRate = program.rateBase === "conventional" ? rates.conventional : rates.fha;
     const rate = baseRate + program.rateOffset;
     const hoa = client.hasHOA === "yes" ? client.hoaAmount : 0;
@@ -587,9 +490,7 @@ export function evaluateEligibility(
     // Helper: compute total monthly for a given purchase price under this program
     const computeForPrice = (price: number) => {
       let loan = price;
-      if (program.id === 1) loan = price * 0.97;
-      else if (program.id === 2) loan = price - 1000;
-      else if (program.id === 3) loan = price * 0.965;
+      if (program.id === 3) loan = price * 0.965;
       else if (program.id === 4) loan = price * 0.965 + 35000; // solar added
       else if (program.id === 5) loan = price * 0.97;
       else if (program.id === 6) loan = price * 0.90; // 10% down
