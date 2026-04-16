@@ -496,10 +496,10 @@ export default function ExistingHomeowner() {
 
   const getLongAgoCase = (): 1 | 2 | 3 | 4 => {
     const { hasEquity25, familySizeIncreasedLong, vacated } = state;
-    if (!hasEquity25) return 4;
-    if (hasEquity25 && familySizeIncreasedLong && vacated) return 1;
-    if (hasEquity25 && familySizeIncreasedLong && !vacated) return 2;
-    return 3;
+    if (!familySizeIncreasedLong) return 3;       // Hard stop — no family size increase
+    if (!hasEquity25) return 4;                   // Family size up, no equity — payment offset caveat
+    if (vacated) return 1;                        // All three conditions met
+    return 2;                                     // Has equity + family size, not yet vacated
   };
 
   // ── Reusable result cards ──────────────────────────────────────────────────
@@ -765,14 +765,25 @@ export default function ExistingHomeowner() {
               </div>
             </div>
 
-            {/* FHA + 2021 or Later + No → FHA to FHA disqualifier + conventional */}
+            {/* FHA + 2021 or Later + No → Hard stop + two paths */}
             {state.familySizeIncreased === "no" && (
               <>
                 <SectionConnector />
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  <DisqualifierCard reason="FHA to FHA not available — the client's new home is within 100 miles and there has been no family size increase." />
+                  <DisqualifierCard reason="FHA to FHA — Hard Stop. Family size has not increased. This is a non-negotiable requirement for a second FHA loan on a home within 100 miles. There is no workaround." />
                   {fhaHasBankruptcy && <PlanningDisclaimer years={2} loanType="FHA" />}
-                  <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#111111", margin: 0 }}>Recommended Path</h3>
+                  <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#111111", margin: 0 }}>Available Paths</h3>
+                  <PathCard
+                    title="Option A — Refinance Current FHA → Conventional"
+                    borderColor="red"
+                    bullets={[
+                      { icon: "✅", text: "Refinance the current home out of FHA into a conventional loan" },
+                      { icon: "✅", text: "Eliminates the existing FHA loan — frees up FHA entitlement" },
+                      { icon: "✅", text: "Client can then purchase the new home using FHA financing" },
+                      { icon: "⚠️", text: "Requires sufficient equity and qualifying income to refi" },
+                    ]}
+                    programs={["selfConv"]}
+                  />
                   {fhaToConvCard}
                 </div>
               </>
@@ -931,7 +942,19 @@ export default function ExistingHomeowner() {
                       if (c === 3) {
                         return (
                           <>
-                            <DisqualifierCard reason="FHA to FHA not available — the client's family size has not increased. Family size increase is required to obtain a second FHA loan on a home within 100 miles." />
+                            <DisqualifierCard reason="FHA to FHA — Hard Stop. Family size has not increased. This is a non-negotiable requirement for a second FHA loan on a home within 100 miles. There is no workaround." />
+                            <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#111111", margin: 0 }}>Available Paths</h3>
+                            <PathCard
+                              title="Option A — Refinance Current FHA → Conventional"
+                              borderColor="red"
+                              bullets={[
+                                { icon: "✅", text: "Refinance the current home out of FHA into a conventional loan" },
+                                { icon: "✅", text: "Eliminates the existing FHA loan — frees up FHA entitlement" },
+                                { icon: "✅", text: "Client can then purchase the new home using FHA financing" },
+                                { icon: "⚠️", text: "Requires sufficient equity and qualifying income to refi" },
+                              ]}
+                              programs={["selfConv"]}
+                            />
                             {fhaToConvCard}
                           </>
                         );
@@ -959,7 +982,7 @@ export default function ExistingHomeowner() {
                             ]}
                             flagBox={{
                               color: "amber",
-                              text: "Current home has less than 25% equity — the existing FHA mortgage payment cannot be offset. The client must qualify carrying both payments in their DTI.",
+                              text: "No 25% equity — the current FHA payment cannot be excluded from DTI unless the client has documented rental income on their prior year tax return. If rental income is on taxes: payment can be offset. If not: both payments must be carried in DTI.",
                             }}
                             programs={["fhaDPA", "fhaSolar"]}
                           />
