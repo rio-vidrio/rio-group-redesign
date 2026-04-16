@@ -76,7 +76,7 @@ export default function Header() {
                   color: "rgba(255,255,255,0.32)",
                 }}
               >
-                Courtesy of
+                Designed by
               </span>
               <Image
                 src="/rio-group-landscape.png"
@@ -117,7 +117,7 @@ export default function Header() {
               }}
             >
               <span style={{ fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.28)" }}>
-                Courtesy of
+                Designed by
               </span>
               <Image
                 src="/rio-group-landscape.png"
