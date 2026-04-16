@@ -49,8 +49,8 @@ export default function Header() {
             <div
               style={{
                 fontFamily: "'DM Sans', sans-serif",
-                color: "rgba(255,255,255,0.9)",
-                fontSize: "15px",
+                color: "rgba(255,255,255,0.95)",
+                fontSize: "19px",
                 fontWeight: 600,
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
@@ -60,20 +60,20 @@ export default function Header() {
             </div>
             <div
               style={{
-                marginTop: "7px",
+                marginTop: "8px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: "7px",
+                gap: "8px",
               }}
             >
               <span
                 style={{
-                  fontSize: "9px",
+                  fontSize: "10px",
                   fontWeight: 500,
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.32)",
+                  color: "rgba(255,255,255,0.6)",
                 }}
               >
                 Designed by
@@ -81,9 +81,9 @@ export default function Header() {
               <Image
                 src="/rio-group-landscape.png"
                 alt="The Rio Group"
-                width={72}
-                height={18}
-                style={{ opacity: 0.4 }}
+                width={78}
+                height={20}
+                style={{ opacity: 0.7 }}
               />
             </div>
           </div>
@@ -98,8 +98,8 @@ export default function Header() {
             <div
               style={{
                 fontFamily: "'DM Sans', sans-serif",
-                color: "rgba(255,255,255,0.88)",
-                fontSize: "11px",
+                color: "rgba(255,255,255,0.93)",
+                fontSize: "13px",
                 fontWeight: 600,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
@@ -109,22 +109,22 @@ export default function Header() {
             </div>
             <div
               style={{
-                marginTop: "5px",
+                marginTop: "6px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "6px",
               }}
             >
-              <span style={{ fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.28)" }}>
+              <span style={{ fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>
                 Designed by
               </span>
               <Image
                 src="/rio-group-landscape.png"
                 alt="The Rio Group"
-                width={60}
-                height={15}
-                style={{ opacity: 0.35 }}
+                width={64}
+                height={16}
+                style={{ opacity: 0.65 }}
               />
             </div>
           </div>
